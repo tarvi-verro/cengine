@@ -1029,9 +1029,10 @@ static int mod_unload(struct refb *refs, int mod_index)
 	else
 		x = 0;
 	assert(x >= 0);
-	lprintf(DBG "Successfully unloaded module %.*s %.*s.\n",
+	lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF" unloaded.\n",
 			n_l, n, v_l, v);
 
+	m->loaded = 0;
 	/* update provided fcn's.loaded */
 	int i, l;
 	struct mod_inf_fcn *mfcns = m->additional;
@@ -1677,15 +1678,15 @@ int ce_mod_rm(int mod_id)
 }
 
 /**
- * DOC: static int main_mod;
+ * DOC: static int root_mod;
  * This contains the module index that was first to call ce_mod_use().
  */
-static int main_mod = -1;
+static int root_mod = -1;
 
 static int mod_use(int mod_index, const char *use)
 {
 	static int use_level = 0;
-	if (main_mod == mod_index && use_level != 0) {
+	if (root_mod == mod_index && use_level != 0) {
 		lputs(ERR "The ce-main module is not supposed to be active "
 				"during any initialisation.");
 		return -121;
@@ -1702,6 +1703,9 @@ static int mod_use(int mod_index, const char *use)
 	/* whether or not this has been called from a module's load() fnc  */
 	int root = 0; /* don't make this static */
 	if (top_use == NULL) {
+
+		root_mod = mod_index;
+
 		root = 1;
 		int n_l;
 		const char *n;
@@ -1832,6 +1836,9 @@ int ce_mod_use(int mod_id, const char *use)
 	return mod_use(n, use);
 }
 
-
+__attribute__((destructor(65001))) static void root_mod_exit()
+{
+	mod_unload(top_use, root_mod);
+}
 
 

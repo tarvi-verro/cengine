@@ -20,7 +20,9 @@
  *
  * 	130	ce-mod.c
  *
- * 	501+	other components
+ * 	501	other components
+ *
+ *    65001	ce-mod.c root-mod exit
  */
 #define __init __attribute__ ((constructor(501)))
 #define __exit __attribute__ ((destructor(501)))
