@@ -1,0 +1,130 @@
+<article class="doc" id="doc:Style_sequences">
+<h1>Style sequences</h1>
+<p>
+The logging allows for using "\x1b[*m"-like escape sequences. It is 
+recommended to use the following, for which support is gauranteed:
+<br /><span class="const">LRESET</span> - resets styles
+<br /><span class="const">LBOLD</span>, <span class="const">LBOLD_OFF</span> - bold style
+<br /><span class="const">LUNDRL</span>, <span class="const">LUNDRL_OFF</span> - underline text
+<br />Foreground colours: <span class="const">LFG_BLACK</span>, <span class="const">LFG_RED</span>, <span class="const">LFG_GREEN</span>, <span class="const">LFG_YELLOW</span>, 
+<span class="const">LFG_BLUE</span>, <span class="const">LFG_MAGNETA</span>, <span class="const">LFG_CYAN</span>, <span class="const">LFG_WHITE</span> and <span class="const">LFG_DEF</span> for default
+colour.
+<br />Background colours: <span class="const">LBG_BLACK</span>, <span class="const">LBG_RED</span>, <span class="const">LBG_GREEN</span>, <span class="const">LBG_YELLOW</span>, 
+<span class="const">LBG_BLUE</span>, <span class="const">LBG_MAGNETA</span>, <span class="const">LBG_CYAN</span>, <span class="const">LBG_WHITE</span> and <span class="const">LBG_DEF</span> for default
+colour.
+<br />Don't forget to end all started ranges or they might colour next logs.
+</p>
+</article>
+<article class="function" id="func:log_stderr_threshold">
+<header>
+<h1>log_stderr_threshold</h1><h2>set level at which log goes to stderr</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">log_stderr_threshold</span> (</li><li class="indent"><span class="type">const char *</span> <span class="param">lvlmcro</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>lvlmcro</dt>
+<dd>level macro, one of <span class="const">DBG</span>, <span class="const">TXT</span>, <span class="const">INF</span>, <span class="const">WRN</span>, <span class="const">ERR</span>
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+<span class="param">lvlmacro</span> and all lower levels(<span class="const">ERR</span>(1) &lt; <span class="const">INF</span>(3)) will be written to <span class="const">stderr</span>.
+<br />
+This defaults to <span class="const">WRN</span>.
+</p>
+</section>
+</article>
+<article class="function" id="func:log_debug">
+<header>
+<h1>log_debug</h1><h2>enable or disable DBG logs</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">log_debug</span> (</li><li class="indent"><span class="type">int</span> <span class="param">enable</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>enable</dt>
+<dd><span class="const">true</span> if messages prepended with <span class="const">DBG</span> will be logged, <span class="const">false</span> to
+have them be ignored
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:log_txt_file">
+<header>
+<h1>log_txt_file</h1><h2>open a file for logs</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">log_txt_file</span> (</li><li class="indent"><span class="type">const char *</span> <span class="param">file</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">clear</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">copy</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">follow</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">filter_esc</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>file</dt>
+<dd>system path to open
+</dd>
+<dt>clear</dt>
+<dd>whether or not to clear the file prior to use
+</dd>
+<dt>copy</dt>
+<dd>should log history(since the execution) be copied over
+</dd>
+<dt>follow</dt>
+<dd>keep the file open and append log as they are printed?
+</dd>
+<dt>filter_esc</dt>
+<dd>should ansi escape codes like Set Graphics Rendering be 
+filtered before writing logs to file
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative on failure, positive integer handle on success or
+0 when follow was false.
+</p>
+</section>
+</article>
+<article class="function" id="func:log_txt_file_rm">
+<header>
+<h1>log_txt_file_rm</h1><h2>close a file following logs</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">log_txt_file_rm</span> (</li><li class="indent"><span class="type">int</span> <span class="param">hndl</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>hndl</dt>
+<dd>handle returned by <span class="func">log_txt_file</span> with follow
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+0 on success. 
+<br />
+1 if such handle is already closed or was never obtained
+</p>
+</section>
+</article>

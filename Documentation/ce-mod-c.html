@@ -1,0 +1,993 @@
+<article class="structure" id="struct:id_t">
+<header>
+<h1>struct id_t</h1><h2>index and verification bits of identifiers</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">id_t</span> {</li>
+<li class="indent"><span class="type">unsigned</span> <span class="param">index</span><span class="bits">:23</span>;</li>
+<li class="indent"><span class="type">unsigned</span> <span class="param">iter</span><span class="bits">:8</span>;</li>
+<li class="indent"><span class="type">unsigned</span> <span class="param">iserr</span><span class="bits">:1</span>;</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>index</dt>
+<dd>index in <span class="param">mods_a</span>
+</dd>
+<dt>iter</dt>
+<dd>verification that must match iter in <span class="struct">struct mod_inf</span> <span class="const">mods_a</span>, 
+used to verify that correct module is referenced after an 
+index has been re-used
+</dd>
+<dt>iserr</dt>
+<dd>MSB of integer representation, when set, <span class="param">index</span> and <span class="param">iter</span> 
+are invalid, see below for more details
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+If <span class="param">iserr</span> is set, <span class="param">index</span> and <span class="param">iter</span> aren't represented in the value, it 
+should instead be handled as a signed negative integer containing an error
+code returned by <span class="func">ce_mod_add</span>.
+</p>
+</section>
+</article>
+<article class="structure" id="struct:use_inf">
+<header>
+<h1>struct use_inf</h1><h2>information about a fcn to be initialized</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">use_inf</span> {</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">fcn_index</span><span class="bits">:11</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">incompat</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">end</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">after</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">ver_len</span><span class="bits">:5</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">ver_off</span><span class="bits">:11</span>;</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>fcn_index</dt>
+<dd>index of the fcn to be initialized in fcn_a
+</dd>
+<dt>incompat</dt>
+<dd>if instead of initializing the fcn mustn't be loaded
+</dd>
+<dt>end</dt>
+<dd>if the fcn would be preferred to be initialized last (or 
+somewhere among the last functionalities)
+</dd>
+<dt>after</dt>
+<dd>should be initialized after the given mod
+</dd>
+<dt>ver_len</dt>
+<dd>length of the version string
+</dd>
+<dt>ver_off</dt>
+<dd>offset of the version string in a separate array of
+characters
+</dd>
+</dl>
+</section>
+</article>
+<article class="structure" id="struct:mod_inf_fcn">
+<header>
+<h1>struct mod_inf_fcn</h1><h2>information about fcn provided in struct mod_inf</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">mod_inf_fcn</span> {</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">index</span><span class="bits">:11</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">ver_len</span><span class="bits">:5</span>;</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>index</dt>
+<dd>index of functionality in fcn_a
+</dd>
+<dt>ver_len</dt>
+<dd>length of provided functionality version string in 
+<span class="struct">struct mod_inf</span>.additional (after the <span class="struct">struct mod_inf_fcn</span>'s)
+</dd>
+</dl>
+</section>
+</article>
+<article class="structure" id="struct:mod_inf">
+<header>
+<h1>struct mod_inf</h1><h2>extra information about a module</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">mod_inf</span> {</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">name_off</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">name_len</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">ver_len</span><span class="bits">:5</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">loaded</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">iter</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">fcn_cnt</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">use_cnt</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">use_add_cnt</span>;</li>
+<li class="indent"><span class="type">struct mod_inf_fcn *</span> <span class="param">additional</span>;</li>
+<li class="indent"><span class="type">int (*</span> <span class="param">load</span><span class="type">)</span> (<span class="args"></span>);</li>
+<li class="indent"><span class="type">int (*</span> <span class="param">unload</span><span class="type">)</span> (<span class="args"></span>);</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>name_off</dt>
+<dd>offset of name in bytes from <span class="param">additional</span>
+</dd>
+<dt>name_len</dt>
+<dd>length of the name string
+</dd>
+<dt>ver_len</dt>
+<dd>length of the version string or <span class="const">0</span> if none given
+</dd>
+<dt>loaded</dt>
+<dd><span class="const">1</span> if the module is loaded, <span class="const">0</span> if it's not loaded;
+</dd>
+<dt>iter</dt>
+<dd>used to verify that the index access was correct
+</dd>
+<dt>fcn_cnt</dt>
+<dd>count of <span class="struct">struct mod_inf_fcn</span> entries defined by mod in 
+<span class="param">additional</span>
+</dd>
+<dt>use_cnt</dt>
+<dd>amount of <span class="struct">struct use_inf</span>'s in <span class="param">additional</span> - used 
+functionality as reqested by <span class="struct">struct ce_mod</span>.use
+</dd>
+<dt>use_add_cnt</dt>
+<dd>additional used functionality as requested by <span class="func">ce_mod_use</span>;
+</dd>
+<dt>additional</dt>
+<dd>memory containing additional info, if this is <span class="const">NULL</span>, the 
+instance is not used; direct access for defined functionality
+<span class="struct">struct mod_inf_fcn</span> array length <span class="param">fcn_cnt</span>
+</dd>
+<dt>load</dt>
+<dd>the function to call for loading the module, returns 
+<span class="const">0</span> on success
+</dd>
+<dt>unload</dt>
+<dd>function to call for unloading the module, returns <span class="const">0</span> 
+on success
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Use <span class="func">mod_inf_name_get</span> and <span class="func">mod_inf_vers_get</span> to retrieve the version and
+name strings.
+</p>
+</section>
+<section>
+<h1>Initialized state</h1>
+<p>
+If <span class="param">additional</span> equals <span class="const">NULL</span>, the module described has been removed. If an 
+index led to this address, it is invalid.
+</p>
+</section>
+<section>
+<h1>Memory layout of additional</h1>
+<p>
+Fcn def 	(<span class="const">0</span> to <span class="param">fcn_cnt</span> * <span class="func">sizeof</span> <span class="struct">struct mod_inf_fcn</span>)
+<br />
+Fcn ver strs	(<span class="param">fcn_cnt</span> * <span class="func">sizeof</span> <span class="struct">struct mod_inf_fcn</span> to <span class="param">name_off</span>)
+<br />
+Mod name	(<span class="param">name_off</span> to <span class="param">name_off</span> + <span class="param">name_len</span>)
+<br />
+Ver str	(<span class="param">name_off</span> + <span class="param">name_len</span> to <span class="param">name_off</span> + <span class="param">name_len</span> + <span class="param">ver_len</span>)
+<br />
+Use infs	(<span class="param">name_off</span> + <span class="param">name_len</span> + <span class="param">ver_len</span> to <span class="param">name_off</span> + <span class="param">name_len</span> + <span class="param">ver_len</span> 
++ <span class="func">sizeof</span> <span class="struct">struct use_inf</span> * <span class="param">use_cnt</span>)
+<br />
+Use verstrs	(&lt;end of use infs&gt; to &lt;end of use infs&gt; 
++ &lt;last useinf&gt;-&gt;ver_off + &lt;last useinf&gt;-&gt;ver_len)
+</p>
+</section>
+</article>
+<article class="doc" id="doc:static_int_mods_length_">
+<h1>static int mods_length;</h1>
+<p>
+</p>
+</article>
+<article class="doc" id="doc:static_int_mods_size_">
+<h1>static int mods_size;</h1>
+<p>
+</p>
+</article>
+<article class="doc" id="doc:static_struct_mod_inf_mods_a_">
+<h1>static struct mod_inf *mods_a;</h1>
+<p>
+List of <span class="func">ce_mod_add</span>'ed modules. If <span class="param">mods_a</span>[n].m == <span class="const">NULL</span>, then given mod is
+not present.
+<br />Adding and removing mods should only happen through <span class="func">ce_mod_add</span> and 
+<span class="func">ce_mod_rm</span>.
+</p>
+</article>
+<article class="function" id="func:mods_expand">
+<header>
+<h1>mods_expand</h1><h2>ensure mods_a can hold given amount of members</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">mods_expand</span> (</li><li class="indent"><span class="type">int</span> <span class="param">size</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>size</dt>
+<dd>how many members the mods_a should be able to hold
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:mod_inf_name_get">
+<header>
+<h1>mod_inf_name_get</h1><h2>get a modules name string</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">mod_inf_name_get</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_index</span>,</li>
+<li class="indent"><span class="type">int *</span> <span class="param">len</span>,</li>
+<li class="indent"><span class="type">const char **</span> <span class="param">name</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_index</dt>
+<dd>index of the mod in mods_a
+</dd>
+<dt>len</dt>
+<dd>where to output the length of the name string
+</dd>
+<dt>name</dt>
+<dd>where to output the name string
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:mod_inf_vers_get">
+<header>
+<h1>mod_inf_vers_get</h1><h2>get the version string of a mod</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">mod_inf_vers_get</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_index</span>,</li>
+<li class="indent"><span class="type">int *</span> <span class="param">len</span>,</li>
+<li class="indent"><span class="type">const char **</span> <span class="param">vers</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_index</dt>
+<dd>index of the mod in mods_a
+</dd>
+<dt>len</dt>
+<dd>where to output the length of the version string
+</dd>
+<dt>vers</dt>
+<dd>where to output the version string
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:mod_inf_use_get">
+<header>
+<h1>mod_inf_use_get</h1><h2>get the compiled use info</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">mod_inf_use_get</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_index</span>,</li>
+<li class="indent"><span class="type">int *</span> <span class="param">uinf_len</span>,</li>
+<li class="indent"><span class="type">const struct use_inf **</span> <span class="param">uinf</span>,</li>
+<li class="indent"><span class="type">const char **</span> <span class="param">uvers</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_index</dt>
+<dd>index of the mod
+</dd>
+<dt>uinf_len</dt>
+<dd>where to output the length of <span class="param">uinf</span> <span class="struct">struct use_inf</span> array
+</dd>
+<dt>uinf</dt>
+<dd>where to output the compiled use info <span class="struct">struct use_inf</span> array
+</dd>
+<dt>uvers</dt>
+<dd>where to output the reference to an array of characters
+that are pointed to by <span class="struct">struct use_inf</span>'s
+</dd>
+</dl>
+</section>
+</article>
+<article class="structure" id="struct:fcn_inf">
+<header>
+<h1>struct fcn_inf</h1><h2>information about functionality</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">fcn_inf</span> {</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">mod_index</span><span class="bits">:11</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">mod_count</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">name_off</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">name_len</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">variable</span><span class="bits">:2</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">expands</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">loaded</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint8_t</span> <span class="param">defined</span><span class="bits">:1</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">parent</span><span class="bits">:11</span>;</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">child_cnt</span><span class="bits">:5</span>;</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>mod_index</dt>
+<dd>index of the mod for given fcn in mods_a or count of mods 
+providing given functionality if <span class="param">mod_count</span> is set
+</dd>
+<dt>mod_count</dt>
+<dd>if set, <span class="param">mod_index</span> will specify amount of mods providing given
+functionality
+</dd>
+<dt>name_off</dt>
+<dd>offset of name in fcn_name.a
+</dd>
+<dt>name_len</dt>
+<dd>length of name in fcn_name.a starting from <span class="param">name_off</span>
+</dd>
+<dt>variable</dt>
+<dd><span class="const">0</span> if the fcn can not be expanded, <span class="const">1</span> if there can be one
+child loaded at a given time, <span class="const">2</span> if there can be indefinite 
+children concurrently loaded
+</dd>
+<dt>expands</dt>
+<dd>whether or not given mod is expanding another fcn
+</dd>
+<dt>loaded</dt>
+<dd><span class="const">0</span> if it's not loaded, <span class="const">1</span> if a module providing given fcn is 
+loaded
+</dd>
+<dt>defined</dt>
+<dd>whether or not the full specification is known from .def or 
+from a fcn's expansion string, this is so overriding a fcn 
+previously from .use to a variable wouldn't yield an error
+</dd>
+<dt>parent</dt>
+<dd>if <span class="param">expands</span> is <span class="const">1</span>, this holds the index of parent fcn
+</dd>
+<dt>child_cnt</dt>
+<dd>if <span class="param">variable</span> is <span class="const">2</span> or <span class="const">1</span>, this holds the number of fcn that 
+can expand it, or <span class="const">31</span> if it has <span class="const">31</span>+ children
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+If <span class="param">mod_index</span> is <span class="const">0</span> and <span class="param">mod_count</span> is <span class="const">1</span>, no modules provide given 
+functionality.
+</p>
+</section>
+</article>
+<article class="function" id="func:fcn_expand">
+<header>
+<h1>fcn_expand</h1><h2>ensure fcn_a can hold given amount of members</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">fcn_expand</span> (</li><li class="indent"><span class="type">int</span> <span class="param">size</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>size</dt>
+<dd>how many members should fcn_a be able to hold
+</dd>
+</dl>
+</section>
+</article>
+<article class="structure" id="struct:hashentry">
+<header>
+<h1>struct hashentry</h1><h2>an entry corresponding to a module name in fcn_l</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">hashentry</span> {</li>
+<li class="indent"><span class="type">uint16_t</span> <span class="param">index</span>;</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>index</dt>
+<dd>index of the first entry by this name in fcn_a
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:fcn_parent_set">
+<header>
+<h1>fcn_parent_set</h1><h2>iterate a parent to include a child</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">fcn_parent_set</span> (</li><li class="indent"><span class="type">int</span> <span class="param">fcn_child</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">fcn_parent</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>fcn_child</dt>
+<dd>the child that's parent to set
+</dd>
+<dt>fcn_parent</dt>
+<dd>parent that's new child <span class="param">fcn_child</span> is
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Iterates the parent.
+<br />
+While the <span class="param">fcn_child</span> value is currently not used at all, future 
+implementations might and consistency with <span class="func">fcn_parent_unset</span> requires.
+</p>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+the parent index
+</p>
+</section>
+</article>
+<article class="function" id="func:fcn_parent_unset">
+<header>
+<h1>fcn_parent_unset</h1><h2>unset a parent for a fcn</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">fcn_parent_unset</span> (</li><li class="indent"><span class="type">int</span> <span class="param">fcn_child</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">fcn_parent</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>fcn_child</dt>
+<dd>the child that's parent has been unset
+</dd>
+<dt>fcn_parent</dt>
+<dd>the parent to unset
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+In effect, this merely decreases the child counter on parent fcn.
+</p>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative on failure, positive on success
+</p>
+</section>
+</article>
+<article class="function" id="func:fcn_get">
+<header>
+<h1>fcn_get</h1><h2>get fcn for given fcn name</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">fcn_get</span> (</li><li class="indent"><span class="type">int</span> <span class="param">fcn_nl</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">fcn_n</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">variable</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>fcn_nl</dt>
+<dd>length of the name string in <span class="param">fcn_n</span>
+</dd>
+<dt>fcn_n</dt>
+<dd>fcn name string to get, this should contain '+'; if 
+expandability is specified via <span class="param">variable</span>, it will not expect
+to find '$' or '[]' in the end(vals <span class="const">1</span>, <span class="const">0</span>, <span class="const">-4</span>)
+</dd>
+<dt>variable</dt>
+<dd><span class="const">2</span>, <span class="const">1</span>, <span class="const">0</span>, or <span class="const">-3</span> if it is determined by the presence of '$' 
+or '[]' in the end of <span class="env">$fcn_n</span> or <span class="const">-4</span> if it remains unknown(use 
+strings - <span class="func">use_compile</span>)
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+This function either finds the existing entry and verifies its properties 
+or if no existing entry is present, it inserts a new entry with specified
+properties.
+</p>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative on error, index of fcn in fcn_a otherwise
+</p>
+</section>
+</article>
+<article class="function" id="func:fcn_provider_get">
+<header>
+<h1>fcn_provider_get</h1><h2>get a loaded functionality's providing mod</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">fcn_provider_get</span> (</li><li class="indent"><span class="type">int</span> <span class="param">fcn_index</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>fcn_index</dt>
+<dd>the functionality which's provider to seek
+</dd>
+</dl>
+</section>
+<section>
+<h1>Returns</h1>
+<p>
+provider module index
+</p>
+</section>
+</article>
+<article class="function" id="func:mod_fcn_set">
+<header>
+<h1>mod_fcn_set</h1><h2>add a provider mod to a fcn</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">mod_fcn_set</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_index</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">fcn_nl</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">fcn_n</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_index</dt>
+<dd>the provider that given fcn entry should specify
+</dd>
+<dt>fcn_nl</dt>
+<dd>length of the function name in <span class="param">fcn_n</span>
+</dd>
+<dt>fcn_n</dt>
+<dd>functionality name that should have an entry that points to
+<span class="param">mod_index</span>(or that the fcn entry's fcn's mod count includes it)
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+This function parses the module name in def string given to <span class="func">ce_mod_add</span>,
+makes sure such entry exists and either increments its providers count or
+specifies its provider as <span class="param">mod_index</span>.
+</p>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+A negative value on failure, index of the fcn in fcn_a
+otherwise.
+</p>
+</section>
+</article>
+<article class="structure" id="struct:use_buf">
+<header>
+<h1>struct use_buf</h1><h2>which mods are required and which can be uninitialized</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">use_buf</span> {</li>
+<li class="indent"><span class="type">int</span> <span class="param">fcn_length</span>;</li>
+<li class="indent"><span class="type">int</span> <span class="param">mods_length</span>;</li>
+<li class="indent"><span class="type">uint32_t *</span> <span class="param">fcns_used</span>;</li>
+<li class="indent"><span class="type">uint32_t *</span> <span class="param">mods_used</span>;</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>fcn_length</dt>
+<dd>how many bits are used of <span class="param">fcns_used</span>, to handle new fcns add 
+to fcn_a
+</dd>
+<dt>mods_length</dt>
+<dd>how many bits are used of <span class="param">mods_used</span>, to handle new mods add
+to mods_a
+</dd>
+<dt>fcns_used</dt>
+<dd>bitarray; is corresponding fcn_a index in use
+</dd>
+<dt>mods_used</dt>
+<dd>bitarray; is corresponding mods_a index in use
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:use_buf_construct">
+<header>
+<h1>use_buf_construct</h1><h2>initializes use buffer's values and allocates associated mem</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">use_buf_construct</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">b</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>b</dt>
+<dd>buffer instance to initialize
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Matching call to free the associated memory <span class="func">use_buf_destruct</span>.
+</p>
+</section>
+</article>
+<article class="function" id="func:use_buf_cpy">
+<header>
+<h1>use_buf_cpy</h1><h2>copy(duplicate) a buffer's contents</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">use_buf_cpy</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">dest</span>,</li>
+<li class="indent"><span class="type">struct use_buf *</span> <span class="param">from</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>dest</dt>
+<dd>the destination buffer
+</dd>
+<dt>from</dt>
+<dd>the buffer to duplicate
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:use_buf_destruct">
+<header>
+<h1>use_buf_destruct</h1><h2>free memory associated with given buffer</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">use_buf_destruct</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">b</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>b</dt>
+<dd>buffer to destruct
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Use this to free memory allocated by <span class="func">use_buf_construct</span>.
+</p>
+</section>
+</article>
+<article class="function" id="func:use_buf_expand">
+<header>
+<h1>use_buf_expand</h1><h2>expand a buffer to hold fcn_length and mods_length</h2>
+</header>
+<ol class="code">
+<li><span class="type">void</span> <span class="identifier">use_buf_expand</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">b</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>b</dt>
+<dd>buffer to expand
+</dd>
+</dl>
+</section>
+</article>
+<article class="function" id="func:mod_load">
+<header>
+<h1>mod_load</h1><h2>Attempts to load a module</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">mod_load</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">ubuf</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">mod_index</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>ubuf</dt>
+<dd>modules used buffer(<span class="struct">struct use_buf</span>)
+</dd>
+<dt>mod_index</dt>
+<dd>index of the module to load
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Executes the module's use info(compiled <span class="struct">struct use_inf</span> array) and calls 
+its load function.
+</p>
+</section>
+</article>
+<article class="function" id="func:ver_compare">
+<header>
+<h1>ver_compare</h1><h2>compare two version strings for which is greater</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">ver_compare</span> (</li><li class="indent"><span class="type">int</span> <span class="param">a_len</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">a</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">b_len</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">b</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>a_len</dt>
+<dd>length of first ver string <span class="param">a</span>
+</dd>
+<dt>a</dt>
+<dd>first version string
+</dd>
+<dt>b_len</dt>
+<dd>lenght of second ver string <span class="param">b</span>
+</dd>
+<dt>b</dt>
+<dd>second ver string
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+Positive if <span class="param">a</span> is greater than <span class="param">b</span>, negative if <span class="param">b</span> is greater 
+than <span class="param">a</span>, <span class="const">0</span> if they're equal.
+</p>
+</section>
+</article>
+<article class="function" id="func:ver_compatible">
+<header>
+<h1>ver_compatible</h1><h2>test if a version string is compatible for a target</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">ver_compatible</span> (</li><li class="indent"><span class="type">int</span> <span class="param">t_len</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">t</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">v_len</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">v</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>t_len</dt>
+<dd>length of the target string <span class="param">t</span>
+</dd>
+<dt>t</dt>
+<dd>target string
+</dd>
+<dt>v_len</dt>
+<dd>length of the string to test
+</dd>
+<dt>v</dt>
+<dd>string to test
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+Negative if they're incompatible, positive if they're 
+compatible.
+</p>
+</section>
+</article>
+<article class="function" id="func:mod_inf_fcn_get">
+<header>
+<h1>mod_inf_fcn_get</h1><h2>get the information about a mod providing given fcn</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">mod_inf_fcn_get</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_index</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">fcn_index</span>,</li>
+<li class="indent"><span class="type">int *</span> <span class="param">prov_ver_l</span>,</li>
+<li class="indent"><span class="type">const char **</span> <span class="param">prov_ver</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_index</dt>
+<dd>index of the module that should provide given fcn
+</dd>
+<dt>fcn_index</dt>
+<dd>the target fcn, about which information is required
+</dd>
+<dt>prov_ver_l</dt>
+<dd>provided version string len output when given fcn is provided
+</dd>
+<dt>prov_ver</dt>
+<dd>provided version string output when given fcn is provided
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative if given mod doesn't provide given fcn, positive if 
+it does
+</p>
+</section>
+</article>
+<article class="function" id="func:use_exec_fcn_init">
+<header>
+<h1>use_exec_fcn_init</h1><h2>finds and initializes the preferred mod for used fcn</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct mod_inf *</span> <span class="identifier">use_exec_fcn_init</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">ubuf</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">fcn_index</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">req_ver_l</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">req_ver</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>ubuf</dt>
+<dd>usage buffer(<span class="struct">struct use_buf</span>)
+</dd>
+<dt>fcn_index</dt>
+<dd>fcn that needs to be initialized
+</dd>
+<dt>req_ver_l</dt>
+<dd>req version <span class="param">req_ver</span> length
+</dd>
+<dt>req_ver</dt>
+<dd>version required by use
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+<span class="const">NULL</span> if no providers could be found, <span class="struct">struct mod_inf</span> 
+reference of the selected and initialized provider module on 
+success
+</p>
+</section>
+</article>
+<article class="function" id="func:use_exec">
+<header>
+<h1>use_exec</h1><h2>executes use information yielded by use_compile</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">use_exec</span> (</li><li class="indent"><span class="type">struct use_buf *</span> <span class="param">ubuf</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">mod_index</span>,</li>
+<li class="indent"><span class="type">int</span> <span class="param">in_len</span>,</li>
+<li class="indent"><span class="type">const struct use_inf *</span> <span class="param">in</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">vers</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>ubuf</dt>
+<dd><span class="struct">struct use_buf</span> that is used to keep the information on what
+functionality/mod is required and what can be uninitialized on
+demand
+</dd>
+<dt>mod_index</dt>
+<dd>the module currently being initialized
+</dd>
+<dt>in_len</dt>
+<dd>how many <span class="struct">struct use_inf</span>'s has been defined in <span class="param">in</span>
+</dd>
+<dt>in</dt>
+<dd><span class="struct">struct use_inf</span>'s that specify the mods to initialize
+</dd>
+<dt>vers</dt>
+<dd>where the associated version strings are stored (as referenced
+to by <span class="struct">struct use_inf</span>)
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative on failure
+</p>
+</section>
+</article>
+<article class="function" id="func:use_compile">
+<header>
+<h1>use_compile</h1><h2>compiles a use string</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">use_compile</span> (</li><li class="indent"><span class="type">const char *</span> <span class="param">use</span>,</li>
+<li class="indent"><span class="type">int *</span> <span class="param">out_len</span>,</li>
+<li class="indent"><span class="type">const struct use_inf **</span> <span class="param">out</span>,</li>
+<li class="indent"><span class="type">int *</span> <span class="param">vers_len</span>,</li>
+<li class="indent"><span class="type">const char **</span> <span class="param">vers</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>use</dt>
+<dd>input use string, see <span class="struct">struct ce_mod</span> for details
+</dd>
+<dt>out_len</dt>
+<dd>where it stores the output <span class="struct">struct use_inf</span> array <span class="param">out</span>'s length
+</dd>
+<dt>out</dt>
+<dd>output array of <span class="struct">struct use_inf</span>'s, of length <span class="param">out_l</span>
+</dd>
+<dt>vers_len</dt>
+<dd>total length of version strings in <span class="param">vers</span>
+</dd>
+<dt>vers</dt>
+<dd>version string - note that individual versions are not null 
+seperated from eachother, strlen(<span class="param">vers</span>) equals <span class="param">vers_len</span>, 
+however the null terminator in the end of all the version 
+strings is not required by <span class="func">use_exec</span>.
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Note that both <span class="param">out</span> and <span class="param">vers</span> are of temporary, in that when <span class="func">use_compile</span>
+is called again, their contents will change.
+</p>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative on error
+</p>
+</section>
+</article>

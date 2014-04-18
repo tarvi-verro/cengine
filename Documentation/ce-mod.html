@@ -1,0 +1,185 @@
+<article class="doc" id="doc:api_for_modules_to_handle_changes_in_dependencies">
+<h1>api for modules to handle changes in dependencies</h1>
+<p>
+</p>
+</article>
+<article class="doc" id="doc:Example_changes_">
+<h1>Example changes:</h1>
+<p>
+scene is switched
+<br />	scenebuilder is unloaded/loaded
+<br />	streamer's files are dropped as scene is switched, though some might 
+stay
+<br />	input methods are switched
+</p>
+</article>
+<article class="doc" id="doc:Constants">
+<h1>Constants</h1>
+<p>
+menu mod (ESC settings and what have you)
+<br />	console
+</p>
+</article>
+<article class="doc" id="doc:How_should_changes_happen_0_2_08">
+<h1>How should changes happen? 0.2.08</h1>
+<p>
+.def = "glfw-ce:2.7.8 | glfw-less:2.7.8; ge-window; ce-input; ce-loop"
+.comment = "wrapper to provide cengine functionality"
+.use = "<span class="struct">glfw</span>-sth" // to include above mod to be initialized only after 
+given mod
+<br />.def = "glfw{2.7.8} | glfw:2.7.8; glfw-less:2.7.8"
+.comment = "glfw functionality, this doesn't include "
+<br />.def = "glx-window | ce-window"
+.use = "ce-input;"
+.comment = "uses the glx api to provide a window"
+<br />.def = "ge-effect 0:2 | OpenGL 3:3; ge-effect$ 0:2; ge-effect+sphere"
+<br />.def = "ge-effect+particle-fire" 
+.use = "OpenGL 3:3; ge-effect 0:2"
+<br />.def = "ce-scene;"
+.use = "ge-effect+particle-{sparks,fire,smoke}"
+<br />.def = "alsa-sound | ce-sound"
+<span class="func">ce_mod_rq</span>
+<span class="func">ce_mod_rm</span>
+<br />
+ce_mod_rq("ce-effect+{sparks,sun,smoke,airdistortion};ce-window")
+<br />It is only required to specify the outermost extension.
+</p>
+</article>
+<article class="structure" id="struct:ce_mod">
+<header>
+<h1>struct ce_mod</h1><h2>a module providing functionality to scenes</h2>
+</header>
+<ol class="code">
+<li><span class="type">struct</span> <span class="identifier">ce_mod</span> {</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">comment</span>;</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">def</span>;</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">use</span>;</li>
+<li class="indent"><span class="type">int (*</span> <span class="param">load</span><span class="type">)</span> (<span class="args"></span>);</li>
+<li class="indent"><span class="type">int (*</span> <span class="param">unload</span><span class="type">)</span> (<span class="args"></span>);</li>
+<li>};</li>
+</ol>
+<section>
+<h1>Members</h1>
+<dl>
+<dt>comment</dt>
+<dd>some words describing your module
+</dd>
+<dt>def</dt>
+<dd>following format "[mod name]|[implements 1],[implements 2]..."
+</dd>
+<dt>use</dt>
+<dd>modules that must be loaded before given mod's <span class="param">load</span> can be 
+called; additionally prepend the implementation with: '!' - 
+incompatible, '#' - load by the end of init process(by 
+loads it after everything else) - you can use this to 
+push time-consuming initialisations towards the end, so if one
+fails, the init fails in less time, '&amp;' - load immediately 
+after current mod
+</dd>
+<dt>load</dt>
+<dd>function that initializes the module or <span class="const">NULL</span> if given module
+doesn't require initialisation
+</dd>
+<dt>unload</dt>
+<dd>the module is no longer required, free up associated resources
+</dd>
+</dl>
+</section>
+<section>
+<h1>Description</h1>
+<p>
+Calling <span class="param">load</span> after <span class="param">unload</span> must be valid.
+<br />
+If multiple modules implement the same functionality, only one of them 
+will be allowed to be loaded at a given time.
+</p>
+</section>
+<section>
+<h1>Use fcn multiple flags</h1>
+<p>
+Using a functionality with flags '#&amp;' will allow the fcn to only load 
+after the current mod, and also pushes it to the end.
+</p>
+</section>
+</article>
+<article class="function" id="func:ce_mod_use">
+<header>
+<h1>ce_mod_use</h1><h2>starts the initialisation procesome words describing your moduless for given list</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">ce_mod_use</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_id</span>,</li>
+<li class="indent"><span class="type">const char *</span> <span class="param">use</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_id</dt>
+<dd>the module that requires these to be initialized, as returned 
+by <span class="func">ce_mod_add</span>
+</dd>
+<dt>use</dt>
+<dd>modules that must be loaded before given function returns 
+successfully, see <span class="struct">struct ce_mod</span> for more accurate 
+specification
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+negative value on failure
+</p>
+</section>
+</article>
+<article class="function" id="func:ce_mod_add">
+<header>
+<h1>ce_mod_add</h1><h2>registers a module</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">ce_mod_add</span> (</li><li class="indent"><span class="type">const struct ce_mod *</span> <span class="param">mod</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod</dt>
+<dd>module to add
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+added module's unique identifier on success, negative value on 
+failure
+</p>
+</section>
+</article>
+<article class="function" id="func:ce_mod_rm">
+<header>
+<h1>ce_mod_rm</h1><h2>remove a module</h2>
+</header>
+<ol class="code">
+<li><span class="type">int</span> <span class="identifier">ce_mod_rm</span> (</li><li class="indent"><span class="type">int</span> <span class="param">mod_id</span></li>
+<li>)</li>
+</ol>
+<section>
+<h1>Arguments</h1>
+<p>
+<dl>
+<dt>mod_id</dt>
+<dd>identifier of the module to remove as returned by <span class="func">ce_mod_add</span>
+</dd>
+</dl>
+</section>
+<section>
+<h1>Return</h1>
+<p>
+0 on success, negative on error (current implementation
+asserts all failure cases)
+</p>
+</section>
+</article>
