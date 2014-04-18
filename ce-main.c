@@ -12,9 +12,9 @@ static void __init mod_init()
 {
 	struct ce_mod mod = {
 		.comment = "Program start point was in ce-main.c.",
-		.def = "cengine-main 0.2.8 | ce-main 0:2.8; "
+		.def = "ce-main-c 0:2.8 | ce-entry-pt 0:2.8; "
 			"ce-exp+test; ce-exp[] 0:2.8",
-		.use = "ce-window 0",
+		.use = "ce-window",
 		.load = NULL,
 		.unload = NULL,
 	};
@@ -52,13 +52,13 @@ int main(int argc, const char **args)
 
 	arg_push_a(argc - 1, args + 1);
 
-	int err = ce_mod_use(modid, "ce-window");
+	int err = ce_mod_use(modid, "");
 	if (err < 0)
 		lprintf(ERR "Initializing ce-window failed: %s\n", 
 				ce_mod_strerr(err));
 
 #ifdef MEMCNT_ENABLED
-	memcnt_status(stderr);
+	//memcnt_status(stderr);
 #endif
 	size_t mem_mod = ce_mod_memcnt();
 	size_t mem_log = ce_log_memcnt();

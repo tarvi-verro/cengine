@@ -215,8 +215,8 @@ static inline void mod_inf_use_get(int mod_index, int* uinf_len,
 		*uinf_len = minf->use_cnt + minf->use_live_cnt;
 
 	assert(uinf != NULL);
-	*uinf = (struct use_inf *)((uint8_t *)minf->additional) 
-		+ minf->name_off + minf->name_len + minf->ver_len;
+	*uinf = (struct use_inf *)(((uint8_t *)minf->additional) 
+		+ minf->name_off + minf->name_len + minf->ver_len);
 
 	if (uvers != NULL)
 		*uvers = ((char *) *uinf) + minf->use_cnt 
@@ -697,6 +697,7 @@ static int refb_mod_cnt(struct refb *b, int mod_index);
 static int refb_fcn_ref(struct refb *b, int fcn_index);
 static int refb_fcn_unref(struct refb *b, int fcn_index);
 static int refb_fcn_cnt(struct refb *b, int fcn_index);
+
 #include "ce-mod-refb.c"
 
 __attribute__((constructor(130))) static void ce_mod_init()
@@ -743,8 +744,9 @@ __attribute__((destructor(130))) static void ce_mod_exit()
 	xf_htable_destruct(fcn_l);
 	int i;
 	for (i = 0; i < mods_length; i++) {
-		if (mods_a[i].additional != NULL)
-			free(mods_a[i].additional);
+		if (mods_a[i].additional == NULL)
+			continue;
+		free(mods_a[i].additional);
 	}
 	free(mods_a);
 	free(fcns_a);
@@ -773,7 +775,6 @@ size_t ce_mod_memcnt()
 			struct mod_inf *m = mods_a + i;
 			if (!m->additional)
 				continue;
-		size_t a = cnt;
 			cnt += m->name_off + m->name_len + m->ver_len
 				+ sizeof(struct use_inf) 
 					* (m->use_cnt + m->use_live_size);
@@ -949,7 +950,6 @@ static int mod_load(struct refb *refs, int mod_index)
 	mod_inf_use_get(mod_index, &uinf_len, &uinf, &uvers);
 	i = use_exec(refs, mod_index, uinf_len, uinf, uvers);
 	if (i < 0) {
-		lprintf(DBG "MKAYY%i\n", i);
 		lprintf(WRN "Failed to satisfy dependencies for module %.*s %.*s.\n", 
 				name_len, name, vers_len, vers);
 		rval = -102;
@@ -959,7 +959,9 @@ static int mod_load(struct refb *refs, int mod_index)
 
 	lprintf(INF "Loading module %.*s %.*s..\n", 
 			name_len, name, vers_len, vers);
-	int fcnr = minf->load();
+	int fcnr = 0;
+	if (minf->load != NULL)
+		fcnr = minf->load();
 
 	if (fcnr < 0) {
 		lprintf(WRN "Failed to load module %.*s %.*s(returned %i).\n", 
@@ -967,9 +969,14 @@ static int mod_load(struct refb *refs, int mod_index)
 		rval = -101;
 		goto exitp;
 	}
-	lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF
-			"(returned "LFG_BLUE"%i"LFG_DEF") loaded.\n", 
-			name_len, name, vers_len, vers, fcnr);
+	if (minf->load != NULL)
+		lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF
+				"(returned "LFG_BLUE"%i"LFG_DEF") loaded.\n", 
+				name_len, name, vers_len, vers, fcnr);
+	else
+		lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF
+				" loaded.\n", 
+				name_len, name, vers_len, vers);
 
 	/* Update ->loaded info for mod and provided fcns */
 	minf->loaded = 1;
@@ -1010,11 +1017,9 @@ static int mod_unload(struct refb *refs, int mod_index)
 	int x;
 	/* check if module can be dropped */
 	if ((x = refb_mod_cnt(refs, mod_index)) > 0) {
-lputs(INF "KKK 0");
 		lprintf(DBG "Cannot unload module %.*s %.*s "
 				"- it is referenced %i times.\n",
 				n_l, n, v_l, v, x);
-lputs(INF "KKK 1");
 		return -141;
 	}
 
@@ -1266,7 +1271,6 @@ static int use_exec_fcn_init(struct refb *refs,
 
 
 		int x = mod_load(refs, prov_a[lst].mod_index);
-		lprintf(DBG "MKAY%i\n", x);
 		if (x < 0) {
 			mod_inf_name_get(prov_a[lst].mod_index, &nl, &n);
 			mod_inf_vers_get(prov_a[lst].mod_index, &vl, &v);
@@ -1558,9 +1562,9 @@ int ce_mod_add(const struct ce_mod *mod)
 		}
 	}
 	/* compile mod->use */
-	int uinf_len;
+	int uinf_len = 0;
 	struct use_inf *uinf;
-	int uvers_len;
+	int uvers_len = 0;
 	char *uvers;
 	err = use_compile(mod->use, &uinf_len, &uinf, &uvers_len, &uvers);
 	if (err < 0)
@@ -1598,10 +1602,22 @@ int ce_mod_add(const struct ce_mod *mod)
 	minf->use_cnt = uinf_len;
 	minf->use_live_cnt = 0;
 	minf->use_live_size = 0;
-	lprintf(INF "Module " LFG_GREEN "%.*s" LFG_DEF " added.\n", 
+
+	struct xf_strb msgb = { .a = NULL, .size = 0, .length = 0 };
+	
+	xf_strb_setf(&msgb, INF "Module " LFG_GREEN "%.*s" LFG_DEF " { ", 
 			minf->name_len, b1.a);
 
-	lprintf(INF "AA ID %i\n", n);
+	for (i = 0; i < minf->fcn_cnt; i++) {
+		struct fcn_inf *fin = fcns_a + minf->additional[i].index;
+		xf_strb_appendf(&msgb, ""LFG_YELLOW"%.*s"LFG_DEF"; ",
+				fin->name_len, fcn_name.a + fin->name_off);
+	};
+
+	xf_strb_appendf(&msgb, "} added. ID %i\n", n);
+	lprintf(msgb.a);
+	xf_strb_destruct(&msgb);
+
 	/*xf_strb_destruct(&b1);*/
 exitp:
 	if (err < 0) {
@@ -1699,11 +1715,16 @@ static int mod_use(int mod_index, const char *use)
 		/* malloc  */
 		top_use = malloc(sizeof(struct refb));
 		refb_construct(top_use);
-		mods_a[mod_index].loading = 1;
+
+		if ((err = mod_load(top_use, mod_index)) < 0) {
+			lprintf(ERR "Root mod failed to be loaded, this is the end.\n");
+			return err;
+		}
+		mods_a[mod_index].loading = 1; /* is it a good idea to manipulate this flag here? */
 	}
 	err = use_exec(top_use, mod_index, out_len, out, vers);
 	if (root) {
-		mods_a[mod_index].loading = 0;
+		mods_a[mod_index].loading = 0; /* should this flag be constantly set root-mod? */
 		if (err >= 0) {
 			mods_a[mod_index].loaded = 1;
 			int i, l;
