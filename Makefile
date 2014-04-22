@@ -1,7 +1,7 @@
 
 CC = gcc
 
-INCL	= -IeXtFnc-0.2 -Iinclude -include include/memcnt.h
+INCL	= -IeXtFnc -Iinclude -include include/memcnt.h
 LIB	= -ldl
 
 FILES	 = ce-log.c

@@ -1,0 +1,4 @@
+[submodule "eXtFnc"]
+	path = eXtFnc
+	url = ../eXtFnc/
+	branch = master
