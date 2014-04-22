@@ -229,12 +229,12 @@ static int out_use = 0;
 static void log_txt_conv(const char* in, int *lend, int *llvl,
 		void (*out)(const char *str, int len, int lvl, void*), void *pass)
 {
-	static const char chrlvl[5][sizeof(LFG_RED "ERR" LFG_DEF ": ")] = { 
-		LFG_RED "ERR" LFG_DEF ": ", 
-		LFG_YELLOW "WRN" LFG_DEF ": ", 
-		LFG_BLUE "INF" LFG_DEF ": ", 
-		LFG_WHITE "TXT" LFG_DEF ": ", 
-		LFG_CYAN "DBG" LFG_DEF ": "
+	static const char chrlvl[5][sizeof(lF_RED "ERR" _lF ": ")] = { 
+		lF_RED "ERR" _lF ": ", 
+		lF_YELW "WRN" _lF ": ", 
+		lF_BLUE "INF" _lF ": ", 
+		lF_WHI "TXT" _lF ": ", 
+		lF_CYA "DBG" _lF ": "
 	};
 	int _lend = 1;
 	if (lend == NULL)
@@ -272,7 +272,7 @@ static void log_txt_conv(const char* in, int *lend, int *llvl,
 		*llvl = *p;
 
 		int hdl = snprintf(hdr, sizeof(hdr), "[%3u] " 
-					LFG_WHITE "%16s" LFG_DEF " ", tstmp, bufr);
+					lF_WHI "%16s" _lF " ", tstmp, bufr);
 
 		out(hdr, hdl, *llvl, pass);
 		out(prep, sizeof(chrlvl[0]), *llvl, pass);

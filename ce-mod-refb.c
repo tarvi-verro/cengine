@@ -312,7 +312,7 @@ static int refb_fcn_unref(struct refb *b, int fcn_index)
 #ifndef NDEBUG
 		if (!cc) {
 			lprintf(ERR "Cannot unreference "
-					LFG_RED"%.*s"LFG_DEF" from 0!!\n",
+					lF_RED"%.*s"_lF" from 0!!\n",
 					fcns_a[fcn_index].name_len, 
 					fcn_name.a + fcns_a[fcn_index].name_off);
 		}

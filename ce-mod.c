@@ -411,7 +411,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		i++;
 		if (n[i] != ']') {
 			lprintf(ERR "Unexpected character '%.*s"
-					LBG_RED"%c"LBG_DEF"%s' expected ']'.\n",
+					lB_RED"%c"_lB"%s' expected ']'.\n",
 					i, n, n[i], n + i + 1);
 			rvl = -17;
 			goto exitpt;
@@ -429,7 +429,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 	i++;
 	if (n[i] != '\0') {
 		lprintf(ERR "Unexpected character '%.*s"
-				LBG_RED"%c"LBG_DEF"%s' expected '\\0'.\n",
+				lB_RED"%c"_lB"%s' expected '\\0'.\n",
 				i, n, n[i], n + i + 1);
 		rvl = -18;
 		goto exitpt;
@@ -472,7 +472,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 				goto exitpt;
 			}
 			lprintf(ERR "fcns_a at maximum capacity, cannot set "
-					"'"LFG_RED"%.*s"LFG_DEF"'\n",
+					"'"lF_RED"%.*s"_lF"'\n",
 					fcn_nl, fcn_n);
 			wrnonce = 1;
 			rvl = -12;
@@ -492,7 +492,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		f->defined = 0;
 		f->parent = parent != -1 ? parent : 0;
 		f->child_cnt = 0;
-		lprintf(DBG "FCN '"LFG_CYAN"%.*s%s"LFG_DEF
+		lprintf(DBG "FCN '"lF_CYA"%.*s%s"_lF
 				"' added.\n", b.length - 1, fcn_n, 
 				!f->variable ? "" : (f->variable == 1 ? "$" : "[]"));
 
@@ -502,7 +502,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		int refc = top_use != NULL ? refb_fcn_cnt(top_use, e->index) : 0;
 		if (variable != -4 && f->variable != var) {
 			if (!(f->mod_count == 1 && f->mod_index == 0) || f->defined) {
-				lprintf(ERR "FCN '"LFG_RED"%.*s"LFG_DEF
+				lprintf(ERR "FCN '"lF_RED"%.*s"_lF
 						"' extend mismatch - expected %s.\n",
 						fcn_nl, fcn_n, !f->variable?"no extension":
 						(f->variable==2?"array of fcns":"single fcn"));
@@ -510,7 +510,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 				goto exitpt;
 			} /* if no mods defining and using, overload */
 			if (refc)
-				lprintf(WRN "Overriding '"LFG_YELLOW"%s"LFG_DEF
+				lprintf(WRN "Overriding '"lF_YELW"%s"_lF
 						"' to expand %s.\n", 
 						b.a, !var ? "nothing" : 
 						(var==1?"single":"multi"));
@@ -522,7 +522,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 				rvl = -14;
 				goto exitpt;
 			}
-			lprintf(WRN "Overriding '%.*s' expands to "LBOLD"%s"LBOLD_OFF"\n",
+			lprintf(WRN "Overriding '%.*s' expands to "lBLD_"%s"_lBLD"\n",
 					fcn_nl, fcn_n, (parent != -1) ? "true" : "false");
 			f->expands = (parent != -1);
 			if (f->expands) {
@@ -709,9 +709,9 @@ __attribute__((constructor(130))) static void ce_mod_init()
 	xf_strb_construct(&fcn_name, 128);
 
 	lputs(INF "Module handler initialized.");
-	lprintf(DBG "Struct sizes in bytes: mod_inf: "LFG_BLUE"%tu"LFG_DEF", "
-			"fcn_inf: "LFG_BLUE"%tu"LFG_DEF", "
-			"use_inf: "LFG_BLUE"%tu"LFG_DEF" \n", 
+	lprintf(DBG "Struct sizes in bytes: mod_inf: "lF_BLUE"%tu"_lF", "
+			"fcn_inf: "lF_BLUE"%tu"_lF", "
+			"use_inf: "lF_BLUE"%tu"_lF" \n", 
 			sizeof(struct mod_inf), sizeof(struct fcn_inf), 
 			sizeof(struct use_inf));
 }
@@ -786,7 +786,7 @@ size_t ce_mod_memcnt()
 				+ u[m->use_cnt - 1].ver_len;
 
 		/*lprintf(INF "memcnt of %i|%i mods_a[%.*s].additional: "
-				LFG_BLUE"%i"LFG_DEF".\n", 
+				lF_BLUE"%i"_lF".\n", 
 				m->use_cnt, u[m->use_cnt - 1].ver_off,
 				m->name_len, 
 				((char *)m->additional) + m->name_off, 
@@ -970,11 +970,11 @@ static int mod_load(struct refb *refs, int mod_index)
 		goto exitp;
 	}
 	if (minf->load != NULL)
-		lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF
-				"(returned "LFG_BLUE"%i"LFG_DEF") loaded.\n", 
+		lprintf(INF "Module "lF_BLUE"%.*s %.*s"_lF
+				"(returned "lF_BLUE"%i"_lF") loaded.\n", 
 				name_len, name, vers_len, vers, fcnr);
 	else
-		lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF
+		lprintf(INF "Module "lF_BLUE"%.*s %.*s"_lF
 				" loaded.\n", 
 				name_len, name, vers_len, vers);
 
@@ -1029,7 +1029,7 @@ static int mod_unload(struct refb *refs, int mod_index)
 	else
 		x = 0;
 	assert(x >= 0);
-	lprintf(INF "Module "LFG_BLUE"%.*s %.*s"LFG_DEF" unloaded.\n",
+	lprintf(INF "Module "lF_BLUE"%.*s %.*s"_lF" unloaded.\n",
 			n_l, n, v_l, v);
 
 	m->loaded = 0;
@@ -1276,8 +1276,8 @@ static int use_exec_fcn_init(struct refb *refs,
 			mod_inf_name_get(prov_a[lst].mod_index, &nl, &n);
 			mod_inf_vers_get(prov_a[lst].mod_index, &vl, &v);
 			lprintf(WRN "Unsuccessful load of provider "
-					LFG_RED"%.*s %.*s"LFG_DEF
-					" for fcn "LFG_RED"%.*s %.*s"LFG_DEF".\n",
+					lF_RED"%.*s %.*s"_lF
+					" for fcn "lF_RED"%.*s %.*s"_lF".\n",
 					nl, n, vl, v, 
 					f->name_len, fcn_name.a + f->name_off,
 					req_ver_l, req_ver);
@@ -1290,7 +1290,7 @@ static int use_exec_fcn_init(struct refb *refs,
 	}
 	/* if (!prov_valid) { */
 	lprintf(ERR "Failed to find a provider mod for fcn "
-			LFG_RED"%.*s %.*s"LFG_DEF".\n", f->name_len, 
+			lF_RED"%.*s %.*s"_lF".\n", f->name_len, 
 			fcn_name.a + f->name_off, req_ver_l, req_ver);
 	rval = -1;
 	/* } */
@@ -1433,7 +1433,7 @@ static int use_compile(const char *use,
 		}
 		if (!fnd && d[i]) {
 			lprintf(ERR "Invalid character in use string: "
-					"'%.*s"LBG_RED"%c"LBG_DEF"%s', expected ';' or '\\0'.",
+					"'%.*s"lB_RED"%c"_lB"%s', expected ';' or '\\0'.",
 					i, d, d[i], d + i + 1);
 			return -41;
 		}
@@ -1506,7 +1506,7 @@ int ce_mod_add(const struct ce_mod *mod)
 	for (i += 0; isspace(d[i]); i++);
 	if (d[i] != '|' && d[i] != '\0') {
 		lprintf(ERR "Invalid definition for module: "
-				"'%.*s"LBG_RED"%c"LBG_DEF"%s'\n",
+				"'%.*s"lB_RED"%c"_lB"%s'\n",
 				i, d, d[i], d + i + 1);
 		err = -4;
 		goto exitp;
@@ -1528,7 +1528,7 @@ int ce_mod_add(const struct ce_mod *mod)
 		end = i;
 		int c = mod_fcn_set(n, end - start, d + start);
 		if (c < 0) {
-			lprintf(ERR "%s At: '%.*s"LBG_RED"%c"LBG_DEF"%s'\n", ce_mod_strerr(c), 
+			lprintf(ERR "%s At: '%.*s"lB_RED"%c"_lB"%s'\n", ce_mod_strerr(c), 
 					start, d, d[start], d + start + 1);
 			err = c;
 			goto exitp;
@@ -1545,8 +1545,8 @@ int ce_mod_add(const struct ce_mod *mod)
 		}
 		b3[b3_length - 1].ver_len = i - verstart;
 
-		/*lprintf(DBG "FCN parsed - '"LFG_CYAN"%.*s"LFG_DEF"' "
-				"v:'"LFG_CYAN"%.*s"LFG_DEF"'\n", 
+		/*lprintf(DBG "FCN parsed - '"lF_CYA"%.*s"_lF"' "
+				"v:'"lF_CYA"%.*s"_lF"'\n", 
 				fcns_a[c].name_len, fcn_name.a + fcns_a[c].name_off,
 				i - verstart, d + verstart);*/
 
@@ -1556,7 +1556,7 @@ int ce_mod_add(const struct ce_mod *mod)
 		}
 		if (!sepfnd && d[i]) {
 			lprintf(ERR "Invalid character in module definition: "
-					"'%.*s"LBG_RED"%c"LBG_DEF"%s' expected ';' or '\\0'.\n",
+					"'%.*s"lB_RED"%c"_lB"%s' expected ';' or '\\0'.\n",
 					i, d, d[i], d + i + 1);
 			err = -3;
 			goto exitp;
@@ -1606,12 +1606,12 @@ int ce_mod_add(const struct ce_mod *mod)
 
 	struct xf_strb msgb = { .a = NULL, .size = 0, .length = 0 };
 	
-	xf_strb_setf(&msgb, INF "Module " LFG_GREEN "%.*s" LFG_DEF " { ", 
+	xf_strb_setf(&msgb, INF "Module " lF_GRE "%.*s" _lF " { ", 
 			minf->name_len, b1.a);
 
 	for (i = 0; i < minf->fcn_cnt; i++) {
 		struct fcn_inf *fin = fcns_a + minf->additional[i].index;
-		xf_strb_appendf(&msgb, ""LFG_YELLOW"%.*s"LFG_DEF"; ",
+		xf_strb_appendf(&msgb, ""lF_YELW"%.*s"_lF"; ",
 				fin->name_len, fcn_name.a + fin->name_off);
 	};
 
@@ -1656,7 +1656,7 @@ int ce_mod_rm(int mod_id)
 	const char *name;
 	mod_inf_name_get(n, &name_l, &name);
 
-	lprintf(INF "Module " LFG_RED "%.*s" LFG_DEF " removed.\n", 
+	lprintf(INF "Module " lF_RED "%.*s" _lF " removed.\n", 
 			name_l, name);
 
 	int i, l;
@@ -1714,7 +1714,7 @@ static int mod_use(int mod_index, const char *use)
 		mod_inf_name_get(mod_index, &n_l, &n);
 		mod_inf_vers_get(mod_index, &v_l, &v);
 
-		lprintf(INF "Root mod: "LFG_GREEN"%.*s %.*s"LFG_DEF".\n",
+		lprintf(INF "Root mod: "lF_GRE"%.*s %.*s"_lF".\n",
 				n_l, n, v_l, v);
 		/* malloc  */
 		top_use = malloc(sizeof(struct refb));
@@ -1739,7 +1739,7 @@ static int mod_use(int mod_index, const char *use)
 			}
 		}
 		lprintf(INF "Root mod %sinitialized(err %i), should continue now..\n",
-				err >= 0 ? "" : LFG_RED"NOT "LFG_DEF, err);
+				err >= 0 ? "" : lF_RED"NOT "_lF, err);
 	}
 	if (err < 0)
 		return err;

@@ -2,51 +2,12 @@
 #define _CE_AUX_LOG_H 0,02,06
 
 /**
- * DOC: Style sequences
- * The logging allows for using "\x1b[*m"-like escape sequences. It is 
- * recommended to use the following, for which support is gauranteed:
- *
- * %LRESET - resets styles
- *
- * %LBOLD, %LBOLD_OFF - bold style
- *
- * %LUNDRL, %LUNDRL_OFF - underline text
- *
- * Foreground colours: %LFG_BLACK, %LFG_RED, %LFG_GREEN, %LFG_YELLOW, 
- * %LFG_BLUE, %LFG_MAGNETA, %LFG_CYAN, %LFG_WHITE and %LFG_DEF for default
- * colour.
- *
- * Background colours: %LBG_BLACK, %LBG_RED, %LBG_GREEN, %LBG_YELLOW, 
- * %LBG_BLUE, %LBG_MAGNETA, %LBG_CYAN, %LBG_WHITE and %LBG_DEF for default
- * colour.
- *
- * Don't forget to end all started ranges or they might colour next logs.
+ * DOC: Log with graphics
+ * The logging allows for using "\x1b[*m"-like escape sequences. It is
+ * recommended to use them via the macros defined in xf-escg.h, for those
+ * support is guaranteed.
  */
-#define LRESET		"\x1b[0m"
-#define LBOLD		"\x1b[1m"
-#define LBOLD_OFF	"\x1b[21m"
-#define LUNDRL		"\x1b[4m"
-#define LUNDRL_OFF	"\x1b[24m"
-/* colours */
-#define LFG_BLACK	"\x1b[30m"
-#define LFG_RED		"\x1b[31m"
-#define LFG_GREEN	"\x1b[32m"
-#define LFG_YELLOW	"\x1b[33m"
-#define LFG_BLUE	"\x1b[34m"
-#define LFG_MAGNETA	"\x1b[35m"
-#define LFG_CYAN	"\x1b[36m"
-#define LFG_WHITE	"\x1b[37m"
-#define LFG_DEF		"\x1b[39m"
-
-#define LBG_BLACK	"\x1b[40m"
-#define LBG_RED		"\x1b[41m"
-#define LBG_GREEN	"\x1b[42m"
-#define LBG_YELLOW	"\x1b[43m"
-#define LBG_BLUE	"\x1b[44m"
-#define LBG_MAGNETA	"\x1b[45m"
-#define LBG_CYAN	"\x1b[46m"
-#define LBG_WHITE	"\x1b[47m"
-#define LBG_DEF		"\x1b[49m"
+#include "xf-escg.h"
 
 /* ce-log.c */
 /**

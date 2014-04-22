@@ -62,9 +62,9 @@ int main(int argc, const char **args)
 #endif
 	size_t mem_mod = ce_mod_memcnt();
 	size_t mem_log = ce_log_memcnt();
-	lprintf(INF "Memory usage report: ce-mod "LFG_BLUE"%ti"LFG_DEF" "
-			"+ ce-log "LFG_BLUE"%ti"LFG_DEF" "
-			"= "LFG_BLUE"%ti"LFG_DEF".\n",
+	lprintf(INF "Memory usage report: ce-mod "lF_BLUE"%ti"_lF" "
+			"+ ce-log "lF_BLUE"%ti"_lF" "
+			"= "lF_BLUE"%ti"_lF".\n",
 			mem_mod, mem_log, mem_mod + mem_log);
 	//fprintf(stderr, "OKOK\n");
 	/*lputs(DBG "wtfing");
