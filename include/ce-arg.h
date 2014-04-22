@@ -14,7 +14,7 @@ int arg_push_a(int argc, const char **args);
 
 /**
  * arg_push_str() - parses arguments and passes them to callbacks
- * @argstr:	string of arguments like they would've been written after the 
+ * @argstr:	string of arguments like they would've been written after the
  * 		program name in a terminal
  *
  * This function works on top of arg_push_a().

@@ -20,7 +20,7 @@ static void __init mod_init()
 	};
 	int modid = ce_mod_add(&mod);
 	if (modid < 0) {
-		lprintf(ERR "Failed to add cengine-main module: %s\n", 
+		lprintf(ERR "Failed to add cengine-main module: %s\n",
 				ce_mod_strerr(modid));
 		lputs(INF "Exiting.");
 	}
@@ -54,7 +54,7 @@ int main(int argc, const char **args)
 
 	int err = ce_mod_use(modid, "");
 	if (err < 0)
-		lprintf(ERR "Initializing ce-window failed: %s\n", 
+		lprintf(ERR "Initializing ce-window failed: %s\n",
 				ce_mod_strerr(err));
 
 #ifdef MEMCNT_ENABLED

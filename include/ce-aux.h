@@ -10,7 +10,7 @@
  * DOC: constructor & destructor priority table
  * 	000-100	system implementation functionality
  *
- * 	101-500	auxiliary components 
+ * 	101-500	auxiliary components
  *
  *	101	memcnt.c
  *
@@ -29,18 +29,18 @@
 
 
 /* ce-log.c */
-/** 
- * DOC: Logging introduction 
+/**
+ * DOC: Logging introduction
  * Each line given to log should have a log level prepended to it. Don't use
  * cryptic numbers for this, but rather given constants.
  *
- * If extending to a new line will considerably improve readability of given 
- * log(think formatted data below eachother), prepend each extended line with 
+ * If extending to a new line will considerably improve readability of given
+ * log(think formatted data below eachother), prepend each extended line with
  * %EXT.
  *
  * DOC: Logging levels
  * %DBG - information only useful to the programmer
- * 
+ *
  * %TXT - user input, messages to user
  *
  * %INF - operational info - module (un)loaded and whatnot
@@ -82,7 +82,7 @@ int lputs(const char *s);
 /**
  * DOC: Argument introduction
  * To share arguments between multiple modules, each module that would expect
- * input arguments, can register a callback function for receiving arguments. 
+ * input arguments, can register a callback function for receiving arguments.
  *
  * Any main() functions are expected to call arg_push_a() to push the arguments
  * (defined in ce-arg.h).
@@ -92,18 +92,18 @@ int lputs(const char *s);
  *
  * To list a callback, use arg_callb_add() and to remove it once your module is
  * being unloaded, arg_callb_rm(). These two functions should be called from
- * functions marked with the attributes %__init and %__exit respectively. This 
+ * functions marked with the attributes %__init and %__exit respectively. This
  * ensures that your module will work as a plug-in and won't horribly crash the
- * entire program when an argument is passed to a registered function that's 
+ * entire program when an argument is passed to a registered function that's
  * been since unloaded.
  */
 
 /**
  * arg_callb_add() - add a callback to receive the main-like arguments
- * @cb:		callback that will be called when an argument is received, 
+ * @cb:		callback that will be called when an argument is received,
  * 		this function should return the amount of arguments
  * 		captured(0 if none so the current will also be checked by other
- * 		callbacks, 1 if only the given argument was captured, and 2 or 
+ * 		callbacks, 1 if only the given argument was captured, and 2 or
  * 		more if you expected extra arguments and verified them using
  * 		arg_peek())
  */
@@ -132,7 +132,7 @@ const char *arg_peek(int forw);
  * arg_bool() - check given string against a set of acceptable boolean values
  * @arg:	string to check
  *
- * Return:	1 if @arg is "true"-like, 0 if "false"-like or -1 if it its 
+ * Return:	1 if @arg is "true"-like, 0 if "false"-like or -1 if it its
  * 		yellow or -2 if nothing's passed.
  */
 int arg_bool(const char *arg);

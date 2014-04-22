@@ -37,11 +37,11 @@ void arg_callb_add(int (*cb)(const char *, int))
 int arg_callb_rm(int (*cb)(const char *, int))
 {
 	for (int i = 0; i < cb_length; i++) {
-		if (cb_a[i] != cb) 
+		if (cb_a[i] != cb)
 			continue;
 
 		cb_a[i] = NULL;
-		if (i != cb_length - 1) 
+		if (i != cb_length - 1)
 			return 0;
 
 		/* cut off any extra NULL's from the end */
@@ -75,7 +75,7 @@ int arg_push_a(int argc, const char **args)
 				break;
 		}
 		/* did a callback mess up the return value? */
-		assert(fnd >= 0 && fnd + i <= argc); 
+		assert(fnd >= 0 && fnd + i <= argc);
 		if(fnd) {
 			i += fnd - 1; /* iterate the amount of args captured */
 		} else if (!ishlp) {

@@ -7,16 +7,16 @@
 #include <ctype.h> /* isspace */
 #define NAMEINF_UNSPECIF UINT8_MAX
 
-/** 
+/**
  * struct id_t - index and verification bits of identifiers
  * @index:	index in @mods_a
- * @iter:	verification that must match iter in &struct mod_inf %mods_a, 
- * 		used to verify that correct module is referenced after an 
+ * @iter:	verification that must match iter in &struct mod_inf %mods_a,
+ * 		used to verify that correct module is referenced after an
  * 		index has been re-used
- * @iserr:	MSB of integer representation, when set, @index and @iter 
+ * @iserr:	MSB of integer representation, when set, @index and @iter
  * 		are invalid, see below for more details
  *
- * If @iserr is set, @index and @iter aren't represented in the value, it 
+ * If @iserr is set, @index and @iter aren't represented in the value, it
  * should instead be handled as a signed negative integer containing an error
  * code returned by ce_mod_add().
  */
@@ -30,7 +30,7 @@ struct id_t {
  * struct use_inf - information about a fcn to be initialized
  * @fcn_index:	index of the fcn to be initialized in fcns_a
  * @incompat:	if instead of initializing the fcn mustn't be loaded
- * @end:	if the fcn would be preferred to be initialized last (or 
+ * @end:	if the fcn would be preferred to be initialized last (or
  * 		somewhere among the last functionalities)
  * @after:	should be initialized after the given mod
  * @ver_len:	length of the version string
@@ -49,7 +49,7 @@ struct use_inf {
 /**
  * struct mod_inf_fcn - information about fcn provided in struct mod_inf
  * @index:	index of functionality in fcns_a
- * @ver_len:	length of provided functionality version string in 
+ * @ver_len:	length of provided functionality version string in
  * 		&struct mod_inf.additional (after the &struct mod_inf_fcn's)
  */
 struct mod_inf_fcn {
@@ -65,32 +65,32 @@ struct mod_inf_fcn {
  * @loaded:	%1 if the module is loaded, %0 if it's not loaded;
  * @loading:	%1 if the mod_load() is currently running for module
  * @iter:	used to verify that the index access was correct
- * @fcn_cnt:	count of &struct mod_inf_fcn entries defined by mod in 
+ * @fcn_cnt:	count of &struct mod_inf_fcn entries defined by mod in
  * 		@additional
- * @additional:	memory containing additional info, if this is %NULL, the 
+ * @additional:	memory containing additional info, if this is %NULL, the
  * 		instance is not used; direct access for defined functionality
  * 		&struct mod_inf_fcn array length @fcn_cnt
- * @use_cnt:	amount of static &struct use_inf's in @additional - used 
+ * @use_cnt:	amount of static &struct use_inf's in @additional - used
  * 		functionality as reqested by &struct ce_mod.use
  * @use_live_cnt:
  * 		how many additional &struct use_inf's in @additional after
  * 		those counted in @use_cnt - used functionality as requested by
  * 		ce_mod_use().
  * @use_live_size:
- * 		how much space has been allocated for additional 
- * 		&struct use_inf's in @additional(mem allocated for 
+ * 		how much space has been allocated for additional
+ * 		&struct use_inf's in @additional(mem allocated for
  * 		@use_live_cnt entries), note however that no version info is
  * 		allocated
- * @load:	the function to call for loading the module, returns 
+ * @load:	the function to call for loading the module, returns
  * 		%0 on success
- * @unload:	function to call for unloading the module, returns %0 
+ * @unload:	function to call for unloading the module, returns %0
  * 		on success
  *
  * Use mod_inf_name_get() and mod_inf_vers_get() to retrieve the version and
  * name strings.
  *
  * Initialized state:
- * If @additional equals %NULL, the module described has been removed. If an 
+ * If @additional equals %NULL, the module described has been removed. If an
  * index led to this address, it is invalid.
  *
  * Memory layout of additional:
@@ -102,10 +102,10 @@ struct mod_inf_fcn {
  *
  * Ver str	(@name_off + @name_len to @name_off + @name_len + @ver_len)
  *
- * Use infs	(@name_off + @name_len + @ver_len to @name_off + @name_len + @ver_len 
+ * Use infs	(@name_off + @name_len + @ver_len to @name_off + @name_len + @ver_len
  * 			+ sizeof() &struct use_inf * (@use_cnt + @use_live_size))
  *
- * Use verstrs	(<end of use infs> to <end of use infs> 
+ * Use verstrs	(<end of use infs> to <end of use infs>
  * 			+ <last useinf>->ver_off + <last useinf>->ver_len)
  */
 struct mod_inf {
@@ -134,22 +134,22 @@ struct mod_inf {
  * List of ce_mod_add()'ed modules. If @mods_a[n].m == %NULL, then given mod is
  * not present.
  *
- * Adding and removing mods should only happen through ce_mod_add() and 
+ * Adding and removing mods should only happen through ce_mod_add() and
  * ce_mod_rm().
  */
 static int mods_length = 0; /* how much of mods_a has mods mapped to them */
 static int mods_count = 0;  /* how many mods between 0 and mods_length */
 static int mods_size = 10;
 static struct mod_inf *mods_a;
-/* 
- * &struct use_blck_mod.indx holds 7 bits and value 127 is reserved for mods not present 
+/*
+ * &struct use_blck_mod.indx holds 7 bits and value 127 is reserved for mods not present
  */
 static const int mods_max = 2047;
 /* invalid mod; not present */
 static const int mods_unavail = 127;
 
-/** 
- * mods_expand() - ensure mods_a can hold given amount of members 
+/**
+ * mods_expand() - ensure mods_a can hold given amount of members
  * @size:	how many members the mods_a should be able to hold
  */
 static void mods_expand(int size)
@@ -174,7 +174,7 @@ static inline void mod_inf_name_get(int mod_index, int *len, const char **name)
 	*len = minf->name_len;
 	*name = ((char *) minf->additional) + minf->name_off;
 }
-static inline const char *mod_inf_fcn_vers_get(int mod_index) 
+static inline const char *mod_inf_fcn_vers_get(int mod_index)
 {
 	assert(mod_index >= 0 && mod_index < mods_length);
 	struct mod_inf *minf = mods_a + mod_index;
@@ -193,7 +193,7 @@ static inline void mod_inf_vers_get(int mod_index, int *len, const char **vers)
 	struct mod_inf *minf = mods_a + mod_index;
 	assert(minf->additional != NULL);
 	*len = minf->ver_len;
-	*vers = ((char *)minf->additional) + minf->name_off 
+	*vers = ((char *)minf->additional) + minf->name_off
 	       + minf->name_len;
 }
 
@@ -205,7 +205,7 @@ static inline void mod_inf_vers_get(int mod_index, int *len, const char **vers)
  * @uvers:	where to output the reference to an array of characters
  * 		that are pointed to by &struct use_inf's
  */
-static inline void mod_inf_use_get(int mod_index, int* uinf_len, 
+static inline void mod_inf_use_get(int mod_index, int* uinf_len,
 		struct use_inf **uinf, char **uvers)
 {
 	assert(mod_index >= 0 && mod_index < mods_length);
@@ -215,11 +215,11 @@ static inline void mod_inf_use_get(int mod_index, int* uinf_len,
 		*uinf_len = minf->use_cnt + minf->use_live_cnt;
 
 	assert(uinf != NULL);
-	*uinf = (struct use_inf *)(((uint8_t *)minf->additional) 
+	*uinf = (struct use_inf *)(((uint8_t *)minf->additional)
 		+ minf->name_off + minf->name_len + minf->ver_len);
 
 	if (uvers != NULL)
-		*uvers = ((char *) *uinf) + minf->use_cnt 
+		*uvers = ((char *) *uinf) + minf->use_cnt
 			+ minf->use_live_size;
 }
 
@@ -242,26 +242,26 @@ struct xf_strb fcn_name; /* functionality names */
 
 /**
  * struct fcn_inf - information about functionality
- * @mod_index:	index of the mod for given fcn in mods_a or count of mods 
+ * @mod_index:	index of the mod for given fcn in mods_a or count of mods
  * 		providing given functionality if @mod_count is set
  * @mod_count:	if set, @mod_index will specify amount of mods providing given
  * 		functionality
  * @name_off:	offset of name in fcn_name.a
  * @name_len:	length of name in fcn_name.a starting from @name_off
  * @variable:	%0 if the fcn can not be expanded, %1 if there can be one
- * 		child loaded at a given time, %2 if there can be indefinite 
+ * 		child loaded at a given time, %2 if there can be indefinite
  * 		children concurrently loaded
  * @expands:	whether or not given mod is expanding another fcn
- * @loaded:	%0 if it's not loaded, %1 if a module providing given fcn is 
+ * @loaded:	%0 if it's not loaded, %1 if a module providing given fcn is
  * 		loaded
- * @defined:	whether or not the full specification is known from .def or 
- * 		from a fcn's expansion string, this is so overriding a fcn 
+ * @defined:	whether or not the full specification is known from .def or
+ * 		from a fcn's expansion string, this is so overriding a fcn
  * 		previously from .use to a variable wouldn't yield an error
  * @parent:	if @expands is %1, this holds the index of parent fcn
- * @child_cnt:	if @variable is %2 or %1, this holds the number of fcn that 
- * 		can expand it, or %31 if it has %31+ children 
+ * @child_cnt:	if @variable is %2 or %1, this holds the number of fcn that
+ * 		can expand it, or %31 if it has %31+ children
  *
- * If @mod_index is %0 and @mod_count is %1, no modules provide given 
+ * If @mod_index is %0 and @mod_count is %1, no modules provide given
  * functionality.
  */
 struct fcn_inf {
@@ -281,7 +281,7 @@ struct fcn_inf {
 static int fcns_length = 0;
 static int fcns_size = 20;
 static struct fcn_inf *fcns_a;
-/* &struct fcn_inf.parent : 11 
+/* &struct fcn_inf.parent : 11
  */
 static const int fcns_max = 2047;
 /**
@@ -324,12 +324,12 @@ static struct xf_htable *fcn_l = &fcn_lookup; /* convinient use */
  *
  * Iterates the parent.
  *
- * While the @fcn_child value is currently not used at all, future 
+ * While the @fcn_child value is currently not used at all, future
  * implementations might and consistency with fcn_parent_unset() requires.
  *
  * Return:	the parent index
  */
-static int fcn_parent_set(int fcn_child, int fcn_parent) 
+static int fcn_parent_set(int fcn_child, int fcn_parent)
 {
 	assert(fcn_child >= 0 && fcn_child < fcns_length);
 	assert(fcn_parent >= 0 && fcn_parent < fcns_length);
@@ -362,7 +362,7 @@ static int fcn_parent_unset(int fcn_child, int fcn_parent)
 	}
 	int i, cnt = 0;
 	for (i = 0; i < fcns_length; i++) {
-		if (i == fcn_child || !fcns_a[i].expands 
+		if (i == fcn_child || !fcns_a[i].expands
 				|| fcns_a[i].parent != fcn_parent)
 			continue;
 		cnt++;
@@ -376,14 +376,14 @@ static int refb_fcn_cnt(struct refb *b, int fcn_index);
 /**
  * fcn_get() - get fcn for given fcn name
  * @fcn_nl:	length of the name string in @fcn_n
- * @fcn_n:	fcn name string to get, this should contain '+'; if 
+ * @fcn_n:	fcn name string to get, this should contain '+'; if
  * 		expandability is specified via @variable, it will not expect
  * 		to find '$' or '[]' in the end(vals %1, %0, %-4)
- * @variable:	%2, %1, %0, or %-3 if it is determined by the presence of '$' 
- * 		or '[]' in the end of $fcn_n or %-4 if it remains unknown(use 
+ * @variable:	%2, %1, %0, or %-3 if it is determined by the presence of '$'
+ * 		or '[]' in the end of $fcn_n or %-4 if it remains unknown (use
  * 		strings - use_compile())
  *
- * This function either finds the existing entry and verifies its properties 
+ * This function either finds the existing entry and verifies its properties
  * or if no existing entry is present, it inserts a new entry with specified
  * properties.
  *
@@ -392,7 +392,7 @@ static int refb_fcn_cnt(struct refb *b, int fcn_index);
 static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 {
 	assert(fcn_nl > 0 && fcn_n != NULL && fcn_n[0]);
-	assert(variable == 1 || variable == 2 || variable == 0 
+	assert(variable == 1 || variable == 2 || variable == 0
 			|| variable == -3 || variable == -4);
 
 	/* preprocess name - init vars */
@@ -405,7 +405,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 	/* preprocess name */
 	/* process variable/whether it is expandable */
 	int i = 0, var = 0;
-	for (i += 0; n[i] != '\0' && n[i] != '[' && n[i] != ']' 
+	for (i += 0; n[i] != '\0' && n[i] != '[' && n[i] != ']'
 			&& n[i] != '$'; i++);
 	if (n[i] == '[') {
 		i++;
@@ -437,7 +437,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 	if (variable >= 0);
 	else if (var == 2) xf_strb_clip(&b, b.length - 3);
 	else if (var == 1) xf_strb_clip(&b, b.length - 2);
-	
+
 	/* add/verify all parents */
 	int parent = -1; /* topmost parent */
 	for (i = b.length - 2; i >= 0; i--) {
@@ -449,7 +449,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 			continue;
 		}
 		parent = fcn_get(i, b.a, 1 + (n[i] == '+'));
-		fcns_a[parent].defined = 1; 
+		fcns_a[parent].defined = 1;
 		if (parent < 0) {
 			rvl = parent;
 			goto exitpt;
@@ -460,7 +460,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		.index = fcns_length,
 	};
 
-	struct hashentry *e = xf_htable_see(fcn_l, b.a, b.length - 1, &def); 
+	struct hashentry *e = xf_htable_see(fcn_l, b.a, b.length - 1, &def);
 	struct fcn_inf *f;
 	assert(e != NULL); /* if this actually fails at some point, handle it */
 	if (e->index == fcns_length) {
@@ -493,10 +493,10 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		f->parent = parent != -1 ? parent : 0;
 		f->child_cnt = 0;
 		lprintf(DBG "FCN '"lF_CYA"%.*s%s"_lF
-				"' added.\n", b.length - 1, fcn_n, 
+				"' added.\n", b.length - 1, fcn_n,
 				!f->variable ? "" : (f->variable == 1 ? "$" : "[]"));
 
-		e = xf_htable_see(fcn_l, b.a, b.length - 1, &def); 
+		e = xf_htable_see(fcn_l, b.a, b.length - 1, &def);
 	} else {
 		f = &fcns_a[e->index];
 		int refc = top_use != NULL ? refb_fcn_cnt(top_use, e->index) : 0;
@@ -511,8 +511,8 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 			} /* if no mods defining and using, overload */
 			if (refc)
 				lprintf(WRN "Overriding '"lF_YELW"%s"_lF
-						"' to expand %s.\n", 
-						b.a, !var ? "nothing" : 
+						"' to expand %s.\n",
+						b.a, !var ? "nothing" :
 						(var==1?"single":"multi"));
 			f->variable = var;
 			f->child_cnt = 0; /* reset not required, but why not */
@@ -560,7 +560,7 @@ static int fcn_provider_get(int fcn_index)
 			return i;
 		}
 	}
-	assert(1 == 3); /* broken loaded reference: functionaliy isn't 
+	assert(1 == 3); /* broken loaded reference: functionaliy isn't
 			   provided by any loaded module */
 }
 /**
@@ -597,7 +597,7 @@ static int mod_fcn_set(int mod_index, int fcn_nl, const char *fcn_n)
 
 	return index;
 }
-static int mod_fcn_unset(int mod_index, int fcn_index) 
+static int mod_fcn_unset(int mod_index, int fcn_index)
 {
 	if (!fcns_a[fcn_index].mod_count) {
 		fcns_a[fcn_index].mod_count = 1;
@@ -608,7 +608,7 @@ static int mod_fcn_unset(int mod_index, int fcn_index)
 	assert(fcns_a[fcn_index].mod_index > 1);
 	fcns_a[fcn_index].mod_index--;
 
-	if (fcns_a[fcn_index].mod_index != 1) 
+	if (fcns_a[fcn_index].mod_index != 1)
 		return 1;
 
 	/* convert to .mod_count=0, .mod_index=[singlemod'sindex] */
@@ -618,7 +618,7 @@ static int mod_fcn_unset(int mod_index, int fcn_index)
 			continue;
 		int z;
 		for (z = 0; z < mods_a[i].fcn_cnt; z++) {
-			if (mods_a[i].additional[z].index != fcn_index) 
+			if (mods_a[i].additional[z].index != fcn_index)
 				continue;
 			assert(fnd == -1);
 			fcns_a[fcn_index].mod_count = 0;
@@ -654,7 +654,7 @@ static void refb_construct(struct refb *b);
  * Use this to free memory allocated by refb_construct().
  */
 static void refb_destruct(struct refb *b);
-/** 
+/**
  * refb_duplicate() - initializes dest as a copy of src (in its state)
  * @dest:	destination structure, that's not allocated
  * @src:	source buffer that's contents to duplicate
@@ -711,8 +711,8 @@ __attribute__((constructor(130))) static void ce_mod_init()
 	lputs(INF "Module handler initialized.");
 	lprintf(DBG "Struct sizes in bytes: mod_inf: "lF_BLUE"%tu"_lF", "
 			"fcn_inf: "lF_BLUE"%tu"_lF", "
-			"use_inf: "lF_BLUE"%tu"_lF" \n", 
-			sizeof(struct mod_inf), sizeof(struct fcn_inf), 
+			"use_inf: "lF_BLUE"%tu"_lF" \n",
+			sizeof(struct mod_inf), sizeof(struct fcn_inf),
 			sizeof(struct use_inf));
 }
 
@@ -776,20 +776,20 @@ size_t ce_mod_memcnt()
 			if (!m->additional)
 				continue;
 			cnt += m->name_off + m->name_len + m->ver_len
-				+ sizeof(struct use_inf) 
+				+ sizeof(struct use_inf)
 					* (m->use_cnt + m->use_live_size);
 
 			int l;
 			struct use_inf *u;
 			mod_inf_use_get(i, &l, &u, NULL);
-			cnt += m->use_cnt == 0 ? 0 : u[m->use_cnt - 1].ver_off 
+			cnt += m->use_cnt == 0 ? 0 : u[m->use_cnt - 1].ver_off
 				+ u[m->use_cnt - 1].ver_len;
 
 		/*lprintf(INF "memcnt of %i|%i mods_a[%.*s].additional: "
-				lF_BLUE"%i"_lF".\n", 
+				lF_BLUE"%i"_lF".\n",
 				m->use_cnt, u[m->use_cnt - 1].ver_off,
-				m->name_len, 
-				((char *)m->additional) + m->name_off, 
+				m->name_len,
+				((char *)m->additional) + m->name_off,
 				cnt - a);*/
 
 		}
@@ -810,7 +810,7 @@ const char *ce_mod_strerr(int err)
 {
 	assert(err < 0);
 
-	switch (err) 
+	switch (err)
 	{
 		/* ce_mod_add() err values */
 		case -1: return "Modules array at maximum, cannot add.";
@@ -855,8 +855,8 @@ const char *ce_mod_strerr(int err)
 
 
 
-static int use_exec(struct refb *refs, int mod_index, 
-		int in_len, const struct use_inf *in, 
+static int use_exec(struct refb *refs, int mod_index,
+		int in_len, const struct use_inf *in,
 		const char *vers);
 
 static int mod_unload(struct refb *refs, int mod_index);
@@ -866,7 +866,7 @@ static int mod_unload(struct refb *refs, int mod_index);
  * @refs:	modules used buffer(&struct refb)
  * @mod_index:	index of the module to load
  *
- * Executes the module's use info(compiled &struct use_inf array) and calls 
+ * Executes the module's use info(compiled &struct use_inf array) and calls
  * its load function.
  *
  * Return:	negative on failure
@@ -902,7 +902,7 @@ static int mod_load(struct refb *refs, int mod_index)
 	int i, l;
 	for (i = 0, l = minf->fcn_cnt; i < l; i++) {
 		int fcn_index = minf->additional[i].index;
-		//int fcn_used = *(ubuf->fcns_used + (fcn_index / 32)) 
+		//int fcn_used = *(ubuf->fcns_used + (fcn_index / 32))
 		//	& (1 << (fcn_index % 32));
 		/* check given fcn usage -- if it's used, fail instanty */
 		int fcn_used = refb_fcn_cnt(refs, fcn_index);
@@ -941,7 +941,7 @@ static int mod_load(struct refb *refs, int mod_index)
 			rval = -105;
 			goto exitp;
 		}
-	}	
+	}
 
 	/* Execute dependencies(used mods) */
 	int uinf_len;
@@ -950,32 +950,32 @@ static int mod_load(struct refb *refs, int mod_index)
 	mod_inf_use_get(mod_index, &uinf_len, &uinf, &uvers);
 	i = use_exec(refs, mod_index, uinf_len, uinf, uvers);
 	if (i < 0) {
-		lprintf(WRN "Failed to satisfy dependencies for module %.*s %.*s.\n", 
+		lprintf(WRN "Failed to satisfy dependencies for module %.*s %.*s.\n",
 				name_len, name, vers_len, vers);
 		rval = -102;
 		goto exitp;
 	}
 
 
-	lprintf(INF "Loading module %.*s %.*s..\n", 
+	lprintf(INF "Loading module %.*s %.*s..\n",
 			name_len, name, vers_len, vers);
 	int fcnr = 0;
 	if (minf->load != NULL)
 		fcnr = minf->load();
 
 	if (fcnr < 0) {
-		lprintf(WRN "Failed to load module %.*s %.*s(returned %i).\n", 
+		lprintf(WRN "Failed to load module %.*s %.*s(returned %i).\n",
 				name_len, name, vers_len, vers, fcnr);
 		rval = -101;
 		goto exitp;
 	}
 	if (minf->load != NULL)
 		lprintf(INF "Module "lF_BLUE"%.*s %.*s"_lF
-				"(returned "lF_BLUE"%i"_lF") loaded.\n", 
+				"(returned "lF_BLUE"%i"_lF") loaded.\n",
 				name_len, name, vers_len, vers, fcnr);
 	else
 		lprintf(INF "Module "lF_BLUE"%.*s %.*s"_lF
-				" loaded.\n", 
+				" loaded.\n",
 				name_len, name, vers_len, vers);
 
 	/* Update ->loaded info for mod and provided fcns */
@@ -983,7 +983,7 @@ static int mod_load(struct refb *refs, int mod_index)
 	struct mod_inf_fcn *mfcns = minf->additional;
 	for (i = 0, l = minf->fcn_cnt; i < l; i++) {
 		/*lprintf(DBG "BB %i %.*s\n", mod_index,
-				fcns_a[mfcns[i].index].name_len, fcn_name.a 
+				fcns_a[mfcns[i].index].name_len, fcn_name.a
 				+ fcns_a[mfcns[i].index].name_off );*/
 		fcns_a[mfcns[i].index].loaded = 1;
 	}
@@ -1039,7 +1039,7 @@ static int mod_unload(struct refb *refs, int mod_index)
 	for (i = 0, l = m->fcn_cnt; i < l; i++) {
 		int f = mfcns[i].index;
 		/*lprintf(DBG "AA %i %.*s\n", mod_index,
-				fcns_a[mfcns[i].index].name_len, fcn_name.a 
+				fcns_a[mfcns[i].index].name_len, fcn_name.a
 				+ fcns_a[mfcns[i].index].name_off );*/
 		assert(fcns_a[f].loaded);
 		assert(!refb_fcn_cnt(refs, f));
@@ -1073,10 +1073,10 @@ static int mod_unload(struct refb *refs, int mod_index)
  * @b_len:	lenght of second ver string @b
  * @b:		second ver string
  *
- * Return:	Positive if @a is greater than @b, negative if @b is greater 
+ * Return:	Positive if @a is greater than @b, negative if @b is greater
  * 		than @a, %0 if they're equal.
  */
-static int ver_compare(int a_len, const char *a, int b_len, const char *b) 
+static int ver_compare(int a_len, const char *a, int b_len, const char *b)
 {
 	lputs(WRN "ver_compare() function incomplete.");
 	return 1;
@@ -1089,7 +1089,7 @@ static int ver_compare(int a_len, const char *a, int b_len, const char *b)
  * @v_len:	length of the string to test
  * @v:		string to test
  *
- * Return:	Negative if they're incompatible, positive if they're 
+ * Return:	Negative if they're incompatible, positive if they're
  * 		compatible.
  */
 static int ver_compatible(int t_len, const char *t, int v_len, const char *v)
@@ -1105,10 +1105,10 @@ static int ver_compatible(int t_len, const char *t, int v_len, const char *v)
  * @prov_ver_l:	provided version string len output when given fcn is provided
  * @prov_ver:	provided version string output when given fcn is provided
  *
- * Return:	negative if given mod doesn't provide given fcn, positive if 
+ * Return:	negative if given mod doesn't provide given fcn, positive if
  * 		it does
  */
-static int mod_inf_fcn_get(int mod_index, int fcn_index, int *prov_ver_l, 
+static int mod_inf_fcn_get(int mod_index, int fcn_index, int *prov_ver_l,
 		const char **prov_ver)
 {
 	struct mod_inf *minf = mods_a + mod_index;
@@ -1137,7 +1137,7 @@ static int mod_inf_fcn_get(int mod_index, int fcn_index, int *prov_ver_l,
  *
  * Return:	negative on failure, selected module index on success
  */
-static int use_exec_fcn_init(struct refb *refs, 
+static int use_exec_fcn_init(struct refb *refs,
 		int fcn_index, int req_ver_l, const char *req_ver)
 {
 	assert(refs != NULL);
@@ -1161,7 +1161,7 @@ static int use_exec_fcn_init(struct refb *refs,
 			.mod_index = f->mod_index,
 			.works = 1,
 		};
-		int test = mod_inf_fcn_get(f->mod_index, fcn_index, 
+		int test = mod_inf_fcn_get(f->mod_index, fcn_index,
 				&sprv.prov_ver_l, &sprv.prov_ver);
 		if (test < 0) {
 			int n_l = 0;
@@ -1206,7 +1206,7 @@ static int use_exec_fcn_init(struct refb *refs,
 				break;
 		}
 		/* fail on miscounted provider count */
-		assert(prov_length == f->mod_index); 
+		assert(prov_length == f->mod_index);
 	}
 
 	/* See if a providing module is already loaded/ing */
@@ -1216,11 +1216,11 @@ static int use_exec_fcn_init(struct refb *refs,
 		if (!minf->loaded && !minf->loading)
 			continue;
 		/* test for multiple init'ed providers for a fcn */
-		assert(prevprov == -1); 
+		assert(prevprov == -1);
 		if (refb_mod_cnt(refs, prov_a[i].mod_index) > 0) {
 			rval = ver_compatible(req_ver_l, req_ver,
 					prov_a[i].prov_ver_l,
-					prov_a[i].prov_ver) >= 0 
+					prov_a[i].prov_ver) >= 0
 				? prov_a[i].mod_index : -1;
 			goto exitpt;
 		}
@@ -1236,7 +1236,7 @@ static int use_exec_fcn_init(struct refb *refs,
 		for (i = 0; i < prov_length; i++) {
 			if (!prov_a[i].works)
 				continue;
-			if (ver_compatible(req_ver_l, req_ver, prov_a[i].prov_ver_l, 
+			if (ver_compatible(req_ver_l, req_ver, prov_a[i].prov_ver_l,
 						prov_a[i].prov_ver) < 0) {
 				prov_a[i].works = 0;
 				prov_valid--;
@@ -1246,29 +1246,29 @@ static int use_exec_fcn_init(struct refb *refs,
 				lst = i;
 				continue;
 			}
-			if (ver_compare(prov_a[lst].prov_ver_l, 
-						prov_a[lst].prov_ver, 
-						prov_a[i].prov_ver_l, 
+			if (ver_compare(prov_a[lst].prov_ver_l,
+						prov_a[lst].prov_ver,
+						prov_a[i].prov_ver_l,
 						prov_a[i].prov_ver) < 0)
 				continue;
 			lst = i;
 		}
 
-		int nl; 
+		int nl;
 		const char *n;
 		int vl;
 		const char *v;
 
 		/* Attempt initialisation */
-		if (prevprov == lst) { 
+		if (prevprov == lst) {
 			/* Previously loaded, but not referenced */
 			rval = prov_a[lst].mod_index;
 			goto exitpt;
-		} else if (prevprov != -1) { 
+		} else if (prevprov != -1) {
 			/* Unload previous, less suitable mod */
 			mod_unload(refs, prevprov);
 			prevprov = -1;
-		} 
+		}
 
 
 		int x = mod_load(refs, prov_a[lst].mod_index);
@@ -1278,7 +1278,7 @@ static int use_exec_fcn_init(struct refb *refs,
 			lprintf(WRN "Unsuccessful load of provider "
 					lF_RED"%.*s %.*s"_lF
 					" for fcn "lF_RED"%.*s %.*s"_lF".\n",
-					nl, n, vl, v, 
+					nl, n, vl, v,
 					f->name_len, fcn_name.a + f->name_off,
 					req_ver_l, req_ver);
 			prov_a[lst].works = 0;
@@ -1290,7 +1290,7 @@ static int use_exec_fcn_init(struct refb *refs,
 	}
 	/* if (!prov_valid) { */
 	lprintf(ERR "Failed to find a provider mod for fcn "
-			lF_RED"%.*s %.*s"_lF".\n", f->name_len, 
+			lF_RED"%.*s %.*s"_lF".\n", f->name_len,
 			fcn_name.a + f->name_off, req_ver_l, req_ver);
 	rval = -1;
 	/* } */
@@ -1315,8 +1315,8 @@ exitpt:	;
  *
  * Return:	negative on failure
  */
-static int use_exec(struct refb *refs, int mod_index, 
-		int in_len, const struct use_inf *in, 
+static int use_exec(struct refb *refs, int mod_index,
+		int in_len, const struct use_inf *in,
 		const char *vers)
 {
 	assert(mod_index >= 0 && mod_index < mods_length);
@@ -1337,7 +1337,7 @@ static int use_exec(struct refb *refs, int mod_index,
 			goto exitpt;
 		}
 
-		if (f->loaded) 
+		if (f->loaded)
 			continue;
 
 		if (f->mod_count == 1 && f->mod_index == 0) {
@@ -1345,12 +1345,12 @@ static int use_exec(struct refb *refs, int mod_index,
 			goto exitpt;
 		}
 
-		int tmod = use_exec_fcn_init(refs, 
+		int tmod = use_exec_fcn_init(refs,
 				u->fcn_index, u->ver_len, u->ver_off + vers);
 		if (tmod < 0) {
 			lprintf(WRN "Cannot find functionality provider for "
 					"%.*s %.*s.\n",
-					f->name_len, f->name_off + fcn_name.a, 
+					f->name_len, f->name_off + fcn_name.a,
 					u->ver_len, u->ver_off + vers);
 			rval = -63;
 			goto exitpt;
@@ -1375,9 +1375,9 @@ exitpt:	;
  * @out_len:	where it stores the output &struct use_inf array @out's length
  * @out:	output array of &struct use_inf's, of length @out_l
  * @vers_len:	total length of version strings in @vers
- * @vers:	version string - note that individual versions are not null 
- * 		seperated from eachother, strlen(@vers) equals @vers_len, 
- * 		however the null terminator in the end of all the version 
+ * @vers:	version string - note that individual versions are not null
+ * 		seperated from eachother, strlen(@vers) equals @vers_len,
+ * 		however the null terminator in the end of all the version
  * 		strings is not required by use_exec().
  *
  * Note that both @out and @vers are of temporary, in that when use_compile()
@@ -1385,8 +1385,8 @@ exitpt:	;
  *
  * Return:	negative on error
  */
-static int use_compile(const char *use, 
-		int *out_len, struct use_inf **out, 
+static int use_compile(const char *use,
+		int *out_len, struct use_inf **out,
 		int *vers_len, char **vers)
 {
 	if (!b4.a)
@@ -1412,7 +1412,7 @@ static int use_compile(const char *use,
 		b5[e].after = 0;
 		for (i += 0; d[i] == '!' || d[i] == '#' || d[i] == '&'; i++) {
 			if (d[i] == '!') b5[e].incompat = 1;
-			else if (d[i] == '#') b5[e].end = 1; 
+			else if (d[i] == '#') b5[e].end = 1;
 			else if (d[i] == '&') b5[e].after = 1;
 		}
 		int start = i;
@@ -1452,7 +1452,7 @@ int ce_mod_add(const struct ce_mod *mod)
 {
 	assert(top_use == NULL);
 	const char *d = mod->def;
-	
+
 	/* add module entry */
 	int n; /* index in mods_a */
 	if (mods_count == mods_length) {
@@ -1465,7 +1465,7 @@ int ce_mod_add(const struct ce_mod *mod)
 		mods_length++;
 		mods_expand(mods_length);
 		/* just in case free() is called for it before actual alloc */
-		mods_a[n].additional = NULL; 
+		mods_a[n].additional = NULL;
 	} else {
 		for (n = 0; n < mods_length && mods_a[n].additional; n++);
 		assert(n < mods_length);
@@ -1474,7 +1474,7 @@ int ce_mod_add(const struct ce_mod *mod)
 	int err = 0;
 	struct mod_inf *minf = mods_a + n;
 	minf->iter++;
-	
+
 	if (!b1.a)
 		xf_strb_construct(&b1, 64);
 	else
@@ -1483,10 +1483,10 @@ int ce_mod_add(const struct ce_mod *mod)
 		xf_strb_construct(&b2, 64);
 	else
 		xf_strb_clear(&b2);
-	if (!b3) 
+	if (!b3)
 		b3 = malloc(sizeof(b3[0]) * b3_size);
 	int b3_length = 0;
-	
+
 	/* parse definition */
 	int i;
 	for (i = 0; isspace(d[i]); i++);
@@ -1528,7 +1528,7 @@ int ce_mod_add(const struct ce_mod *mod)
 		end = i;
 		int c = mod_fcn_set(n, end - start, d + start);
 		if (c < 0) {
-			lprintf(ERR "%s At: '%.*s"lB_RED"%c"_lB"%s'\n", ce_mod_strerr(c), 
+			lprintf(ERR "%s At: '%.*s"lB_RED"%c"_lB"%s'\n", ce_mod_strerr(c),
 					start, d, d[start], d + start + 1);
 			err = c;
 			goto exitp;
@@ -1546,7 +1546,7 @@ int ce_mod_add(const struct ce_mod *mod)
 		b3[b3_length - 1].ver_len = i - verstart;
 
 		/*lprintf(DBG "FCN parsed - '"lF_CYA"%.*s"_lF"' "
-				"v:'"lF_CYA"%.*s"_lF"'\n", 
+				"v:'"lF_CYA"%.*s"_lF"'\n",
 				fcns_a[c].name_len, fcn_name.a + fcns_a[c].name_off,
 				i - verstart, d + verstart);*/
 
@@ -1589,7 +1589,7 @@ int ce_mod_add(const struct ce_mod *mod)
 	int mnend = minf->name_off + minf->name_len + minf->ver_len;
 	memcpy(((char *)minf->additional) + mnend, uinf, sizeof(uinf[0]) * uinf_len);
 	/* use_inf's ver strs */
-	memcpy(((char *)minf->additional) + mnend + sizeof(uinf[0]) * uinf_len, 
+	memcpy(((char *)minf->additional) + mnend + sizeof(uinf[0]) * uinf_len,
 			uvers, uvers_len);
 
 	/* initialize the rest */
@@ -1605,8 +1605,8 @@ int ce_mod_add(const struct ce_mod *mod)
 	minf->use_live_size = 0;
 
 	struct xf_strb msgb = { .a = NULL, .size = 0, .length = 0 };
-	
-	xf_strb_setf(&msgb, INF "Module " lF_GRE "%.*s" _lF " { ", 
+
+	xf_strb_setf(&msgb, INF "Module " lF_GRE "%.*s" _lF " { ",
 			minf->name_len, b1.a);
 
 	for (i = 0; i < minf->fcn_cnt; i++) {
@@ -1656,11 +1656,11 @@ int ce_mod_rm(int mod_id)
 	const char *name;
 	mod_inf_name_get(n, &name_l, &name);
 
-	lprintf(INF "Module " lF_RED "%.*s" _lF " removed.\n", 
+	lprintf(INF "Module " lF_RED "%.*s" _lF " removed.\n",
 			name_l, name);
 
 	int i, l;
-	for (i = 0, l = mods_a[n].fcn_cnt; i < l; i++) 
+	for (i = 0, l = mods_a[n].fcn_cnt; i < l; i++)
 		mod_fcn_unset(n, mods_a[n].additional[i].index);
 
 	free(mods_a[n].additional);
@@ -1732,7 +1732,7 @@ static int mod_use(int mod_index, const char *use)
 		if (err >= 0) {
 			mods_a[mod_index].loaded = 1;
 			int i, l;
-			for (i = 0, l = mods_a[mod_index].fcn_cnt; 
+			for (i = 0, l = mods_a[mod_index].fcn_cnt;
 					i < l; i++) {
 				int z = mods_a[mod_index].additional[i].index;
 				fcns_a[z].loaded = 1;
@@ -1751,11 +1751,11 @@ static int mod_use(int mod_index, const char *use)
 		int l;
 		struct use_inf *u;
 	       	mod_inf_use_get(mod_index, &l, &u, NULL);
-		int vers_len = !(minf->use_cnt) ? 0 : u[minf->use_cnt - 1].ver_off 
+		int vers_len = !(minf->use_cnt) ? 0 : u[minf->use_cnt - 1].ver_off
 			+ u[minf->use_cnt - 1].ver_len;
 
 		/* calc new size */
-		int use_size_new = 
+		int use_size_new =
 			((minf->use_live_size == 0) + minf->use_live_size) * 2;
 		if (use_size_new - minf->use_live_cnt < out_len)
 			use_size_new = minf->use_live_cnt + out_len;
@@ -1763,19 +1763,19 @@ static int mod_use(int mod_index, const char *use)
 		/*lprintf(WRN "expanding minf->use_live_size; vers_len: %i, "
 				"old sz: %lu, new: %lu, outln: %i\n", vers_len,
 				minf->name_off + minf->name_len + minf->ver_len
-				+ (minf->use_cnt + minf->use_live_size) 
+				+ (minf->use_cnt + minf->use_live_size)
 					* sizeof(struct use_inf)
 				+ vers_len,
 				minf->name_off + minf->name_len + minf->ver_len
-				+ (minf->use_cnt + use_size_new) 
+				+ (minf->use_cnt + use_size_new)
 					* sizeof(struct use_inf)
 				+ vers_len,
 				out_len
 				);*/
 
-		/*int offs = minf->name_off + minf->name_len + minf->ver_len 
+		/*int offs = minf->name_off + minf->name_len + minf->ver_len
 			+ sizeof(struct use_inf) * (minf->use_cnt - 1);
-	lprintf(WRN "a %i usecnt%i off%i\n", 
+	lprintf(WRN "a %i usecnt%i off%i\n",
 			((struct use_inf *)((char *) minf->additional) + offs)
 			->ver_off, minf->use_cnt, offs);*/
 		/* expand m->additional memory to hold more extra use slots */
@@ -1783,15 +1783,15 @@ static int mod_use(int mod_index, const char *use)
 				+ sizeof(struct mod_inf_fcn) * minf->fcn_cnt
 				+ fcn_vers_len*/ + minf->name_off
 				+ minf->name_len + minf->ver_len
-				+ (minf->use_cnt + use_size_new) 
-					* sizeof(struct use_inf) 
+				+ (minf->use_cnt + use_size_new)
+					* sizeof(struct use_inf)
 				+ vers_len
 				);
 		assert(minf->additional != NULL);
 
 		/* move version strings over */
-		memmove(((char *)minf->additional) + minf->name_off 
-				+ minf->name_len + minf->ver_len 
+		memmove(((char *)minf->additional) + minf->name_off
+				+ minf->name_len + minf->ver_len
 				+ (minf->use_cnt + use_size_new)
 					* sizeof(struct use_inf),
 				((char *)minf->additional) + minf->name_off
@@ -1819,7 +1819,7 @@ static int mod_use(int mod_index, const char *use)
 
 	/*lprintf(WRN "len now: %lu(w/o vers_len)\n",
 			minf->name_off + minf->name_len + minf->ver_len
-			+ (minf->use_cnt + minf->use_live_size) 
+			+ (minf->use_cnt + minf->use_live_size)
 			* sizeof(struct use_inf)
 	       ); */
 	return err;

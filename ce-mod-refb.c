@@ -2,13 +2,13 @@
 /**
  * DOC: ce-mod-refb using sequental memory
  * This implementation of the refb_ functions is optimized for constant
- * update/access times for refc of up to 14, fast buffer duplication, 
- * replacement(refb_assign() -- rollback to duplicated state) and 
+ * update/access times for refc of up to 14, fast buffer duplication,
+ * replacement(refb_assign() -- rollback to duplicated state) and
  * destructing(free()'ing either a duplicated or constructed instance's mem).
  *
  * It aims to keep malloc()'ed memory to the minimum by using the structure to
  * store any values that are not of dynamic size.
- * 
+ *
  * Also it allows for a max reference count of ((1 << 20) - 1) + 15 = 1048590.
  */
 
@@ -17,7 +17,7 @@
  * @fcns_len:	how many functionalities does &bug hold
  * @mods_len:	how many mods does @mods_used hold
  * @overflow_len:
- * 		how many overflowed 
+ * 		how many overflowed
  * @overflow_size:
  * 		how many &struct overflow_inf's is there memory for
  *
@@ -53,7 +53,7 @@ static inline uint8_t *_refb_mods(struct refb *b)
 }
 static inline struct overflow_inf *_refb_overflow(struct refb *b)
 {
-	return (struct overflow_inf *) (_refb_mods(b) + 
+	return (struct overflow_inf *) (_refb_mods(b) +
 			b->mods_len / 2 + (b->mods_len % 2)); /* rnd up */
 }
 
@@ -101,7 +101,7 @@ static void refb_assign(struct refb *dest, struct refb *from)
 	dest->buf = from->buf;
 }
 
-static void refb_expand(struct refb *b) 
+static void refb_expand(struct refb *b)
 {
 	assert(b != NULL);
 	assert(b->fcns_len <= fcns_length);
@@ -135,7 +135,7 @@ static int refb_mod_ref(struct refb *b, int mod_index)
 	assert(b->mods_len > mod_index); /* possible expand instead of this */
 
 	int p = _refb_mods(b)[mod_index / 2];
-	int cc = (mod_index % 2) ? 
+	int cc = (mod_index % 2) ?
 		(p & 0xf0) >> 4
 		: p & 0x0f;
 
@@ -158,11 +158,11 @@ static int refb_mod_ref(struct refb *b, int mod_index)
 	}
 	if (trgt == -1) {
 		if (b->overflow_len + 1 > b->overflow_size) {
-			b->overflow_size = (b->overflow_size 
+			b->overflow_size = (b->overflow_size
 					+ (b->overflow_size == 0)) * 2;
 			b->buf = realloc(b->buf, b->fcns_len / 2 + (b->fcns_len % 2)
 					+ b->mods_len / 2 + (b->mods_len % 2)
-					+ b->overflow_size 
+					+ b->overflow_size
 						* sizeof(struct overflow_inf));
 			assert(b->buf != NULL);
 		}
@@ -186,7 +186,7 @@ static int refb_mod_unref(struct refb *b, int mod_index)
 	assert(b->mods_len > mod_index);
 
 	int p = _refb_mods(b)[mod_index / 2];
-	int cc = (mod_index % 2) ? 
+	int cc = (mod_index % 2) ?
 		(p & 0xf0) >> 4
 		: p & 0x0f;
 
@@ -226,7 +226,7 @@ static int refb_mod_cnt(struct refb *b, int mod_index)
 	assert(b->mods_len > mod_index);
 
 	int p = _refb_mods(b)[mod_index / 2];
-	int cc = (mod_index % 2) ? 
+	int cc = (mod_index % 2) ?
 		(p & 0xf0) >> 4
 		: p & 0x0f;
 
@@ -252,7 +252,7 @@ static int refb_fcn_ref(struct refb *b, int fcn_index)
 	assert(b->fcns_len > fcn_index); /* possible expand instead of this */
 
 	int p = _refb_fcns(b)[fcn_index / 2];
-	int cc = (fcn_index % 2) ? 
+	int cc = (fcn_index % 2) ?
 		(p & 0xf0) >> 4
 		: p & 0x0f;
 
@@ -275,11 +275,11 @@ static int refb_fcn_ref(struct refb *b, int fcn_index)
 	}
 	if (trgt == -1) {
 		if (b->overflow_len + 1 > b->overflow_size) {
-			b->overflow_size = (b->overflow_size 
+			b->overflow_size = (b->overflow_size
 					+ (b->overflow_size == 0)) * 2;
 			b->buf = realloc(b->buf, b->fcns_len / 2 + (b->fcns_len % 2)
 					+ b->mods_len / 2 + (b->mods_len % 2)
-					+ b->overflow_size 
+					+ b->overflow_size
 						* sizeof(struct overflow_inf));
 			assert(b->buf != NULL);
 		}
@@ -304,7 +304,7 @@ static int refb_fcn_unref(struct refb *b, int fcn_index)
 	assert(b->fcns_len > fcn_index);
 
 	int p = _refb_fcns(b)[fcn_index / 2];
-	int cc = (fcn_index % 2) ? 
+	int cc = (fcn_index % 2) ?
 		(p & 0xf0) >> 4
 		: p & 0x0f;
 
@@ -313,7 +313,7 @@ static int refb_fcn_unref(struct refb *b, int fcn_index)
 		if (!cc) {
 			lprintf(ERR "Cannot unreference "
 					lF_RED"%.*s"_lF" from 0!!\n",
-					fcns_a[fcn_index].name_len, 
+					fcns_a[fcn_index].name_len,
 					fcn_name.a + fcns_a[fcn_index].name_off);
 		}
 #endif
@@ -352,7 +352,7 @@ static int refb_fcn_cnt(struct refb *b, int fcn_index)
 	assert(b->fcns_len > fcn_index);
 
 	int p = _refb_fcns(b)[fcn_index / 2];
-	int cc = (fcn_index % 2) ? 
+	int cc = (fcn_index % 2) ?
 		(p & 0xf0) >> 4
 		: p & 0x0f;
 

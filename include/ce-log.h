@@ -18,7 +18,7 @@
  *
  * This defaults to %WRN.
  */
-void log_stderr_threshold(const char *lvlmcro); 
+void log_stderr_threshold(const char *lvlmcro);
 
 /**
  * log_debug() - enable or disable DBG logs
@@ -27,13 +27,13 @@ void log_stderr_threshold(const char *lvlmcro);
  */
 void log_debug(int enable);
 
-/** 
+/**
  * log_txt_file() - open a file for logs
  * @file:	system path to open
  * @clear:	whether or not to clear the file prior to use
  * @copy:	should log history(since the execution) be copied over
  * @follow:	keep the file open and append log as they are printed?
- * @filter_esc:	should ansi escape codes like Set Graphics Rendering be 
+ * @filter_esc:	should ansi escape codes like Set Graphics Rendering be
  * 		filtered before writing logs to file
  *
  * Return:	negative on failure, positive integer handle on success or
@@ -45,7 +45,7 @@ int log_txt_file(const char *file, int clear, int copy, int follow, int filter_e
  * log_txt_file_rm() - close a file following logs
  * @hndl:	handle returned by log_txt_file() with follow
  *
- * Return:	0 on success. 
+ * Return:	0 on success.
  *
  * 		1 if such handle is already closed or was never obtained
  */

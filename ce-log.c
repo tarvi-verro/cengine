@@ -7,7 +7,7 @@
 
 /**
  * DOC: log-pipeline
- * lputs()/lprintf() -> log_raw_process() -> log_raw_push() 
+ * lputs()/lprintf() -> log_raw_process() -> log_raw_push()
  * -> log_argcb() -> log_txt_push()
  */
 
@@ -29,7 +29,7 @@ static time_t logstart;
 static int txt_callb_length = 0;
 static int txt_callb_size = 3;
 static struct {
-	void *inf; 
+	void *inf;
 	void (*call)(const char *str, int len, int lvl, void* inf);
 } *txt_callb_a;
 void log_txt_pull(const char *in);
@@ -86,12 +86,12 @@ __attribute__((destructor(110))) static void log_exit()
  * log_raw_listen_add() - listen in on logs
  * @callb:	callback to call when new logs are appended
  *
- * A line in the log follows the format - "3f:origin.c~3:5:Hello world!\n". 
- * The "3f" is hexadecimal encoded seconds since the beginning of the program, 
- * "ce-origin.c~3" is the origin of the log, "5" stands for error level(%DBG) 
- * where a smaller number is of more importance or a more important message, 
+ * A line in the log follows the format - "3f:origin.c~3:5:Hello world!\n".
+ * The "3f" is hexadecimal encoded seconds since the beginning of the program,
+ * "ce-origin.c~3" is the origin of the log, "5" stands for error level(%DBG)
+ * where a smaller number is of more importance or a more important message,
  * these follow the format specified in ce-aux.h.
- * 
+ *
  * Note that the origin part may be overridden to anything that doesn't contain
  * '\0' and ':' characters.
  */
@@ -99,7 +99,7 @@ void log_raw_listen_add(void (*callb)(const char *str))
 {
 	if (raw_callb_length + 1 > raw_callb_size) {
 		raw_callb_size *= 2;
-		raw_callb_a = realloc(raw_callb_a, sizeof(raw_callb_a[0]) 
+		raw_callb_a = realloc(raw_callb_a, sizeof(raw_callb_a[0])
 				* raw_callb_size);
 	}
 	raw_callb_a[raw_callb_length] = callb;
@@ -118,15 +118,15 @@ int log_raw_listen_rm(void (*callb)(const char *str))
 	for (int i = 0; i < raw_callb_length; i++) {
 		if (raw_callb_a[i] != callb) continue;
 		/* 010 */
-		memmove(raw_callb_a + i, raw_callb_a + i + 1, 
-				sizeof(raw_callb_a[0]) 
+		memmove(raw_callb_a + i, raw_callb_a + i + 1,
+				sizeof(raw_callb_a[0])
 				* (raw_callb_length - i - 1));
 		raw_callb_length--;
 		return 0;
 	}
 	return 1;
 }
-/** 
+/**
  * log_raw_push() - passes the new logs to log_raw_readcb fncs
  * @s:		where the new logs start
  */
@@ -150,7 +150,7 @@ static void log_raw_process(int s)
 		int cs;
 		if (b[i] == '\n' && i != rawb->length - 2)
 			cs = i + 1;
-		else 
+		else
 			continue;
 
 //fprintf(stdout, "XXXXX\n");
@@ -205,7 +205,7 @@ int lputs(const char *str)
 
 
 /* handle some output methods */
-static int err_thres = 
+static int err_thres =
 #ifdef NDEBUG
 '2'; /* default WRN */
 #else
@@ -216,9 +216,9 @@ static int out_use = 0;
 /**
  * log_txt_conv() - convert raw logs into more readable format
  * @in:		raw log input string to convert
- * @lend:	variable holding whether @in starts with a new line, initialize 
+ * @lend:	variable holding whether @in starts with a new line, initialize
  * 		it to 1; alternatively, if the string is expected not to expand
- * 		you can use NULL to disregard keeping this variable between 
+ * 		you can use NULL to disregard keeping this variable between
  * 		calls
  * @llvl:	variable holding current line's level('1'-'5'), if the string
  * 		is not expected to expand you can use %NULL to disregard keeping
@@ -229,11 +229,11 @@ static int out_use = 0;
 static void log_txt_conv(const char* in, int *lend, int *llvl,
 		void (*out)(const char *str, int len, int lvl, void*), void *pass)
 {
-	static const char chrlvl[5][sizeof(lF_RED "ERR" _lF ": ")] = { 
-		lF_RED "ERR" _lF ": ", 
-		lF_YELW "WRN" _lF ": ", 
-		lF_BLUE "INF" _lF ": ", 
-		lF_WHI "TXT" _lF ": ", 
+	static const char chrlvl[5][sizeof(lF_RED "ERR" _lF ": ")] = {
+		lF_RED "ERR" _lF ": ",
+		lF_YELW "WRN" _lF ": ",
+		lF_BLUE "INF" _lF ": ",
+		lF_WHI "TXT" _lF ": ",
 		lF_CYA "DBG" _lF ": "
 	};
 	int _lend = 1;
@@ -254,15 +254,15 @@ static void log_txt_conv(const char* in, int *lend, int *llvl,
 			*lend = 1;
 			continue;
 		}
-		if (!*lend) 
+		if (!*lend)
 			continue;
 
 		unsigned int tstmp;
-		
+
 		sscanf(p, "%x:%80[^:]", &tstmp, bufr);
 		for (; *p != ':'; p++); // Skip time
-		for (p++; *p != ':'; p++); // Skip origin 
-		p++; 
+		for (p++; *p != ':'; p++); // Skip origin
+		p++;
 		w = p;
 		*lend = 0;
 		const char *prep;
@@ -271,7 +271,7 @@ static void log_txt_conv(const char* in, int *lend, int *llvl,
 		prep = chrlvl[*p - '1'];
 		*llvl = *p;
 
-		int hdl = snprintf(hdr, sizeof(hdr), "[%3u] " 
+		int hdl = snprintf(hdr, sizeof(hdr), "[%3u] "
 					lF_WHI "%16s" _lF " ", tstmp, bufr);
 
 		out(hdr, hdl, *llvl, pass);
@@ -283,22 +283,22 @@ static void log_txt_conv(const char* in, int *lend, int *llvl,
 }
 void log_stderr_threshold(const char *lvlmcro)
 {
-	
+
 	assert(lvlmcro != NULL);
 	int offs = sizeof(DBG) - 3;
 	/*lprintf(DBG "offs %i\n", offs);*/
 	lvlmcro += offs;
 	assert(*lvlmcro >= '1' && '5' >= *lvlmcro);
 	err_thres = *lvlmcro;
-	
+
 }
 void log_debug(int enable)
 {
 }
 
 
-static void log_txt_listen_add(void (*call)(const char *s, int l, int lvl, void* inf), 
-		void *inf) 
+static void log_txt_listen_add(void (*call)(const char *s, int l, int lvl, void* inf),
+		void *inf)
 {
 	if (txt_callb_length + 1 > txt_callb_size) {
 		txt_callb_size *= 2;
@@ -313,8 +313,8 @@ static int log_txt_listen_rm(void (*call)(const char *, int, int, void*), void *
 {
 	for (int i = 0; i < txt_callb_length; i++) {
 		if (txt_callb_a[i].call != call || txt_callb_a[i].inf != inf) continue;
-		memmove(txt_callb_a + i, txt_callb_a + i + 1, 
-				sizeof(txt_callb_a[0]) 
+		memmove(txt_callb_a + i, txt_callb_a + i + 1,
+				sizeof(txt_callb_a[0])
 				* (txt_callb_length - i - 1));
 		txt_callb_length--;
 		return 0;
@@ -392,16 +392,16 @@ int log_txt_file(const char *file, int clear, int copy, int follow, int filter_s
 	lf->filter_sgr = filter_sgr;
 	log_txt_listen_add(log_txt_file_out, lf);
 	lprintf(INF "Now following '%s' for logging, hndl %i.\n", file, lf->id);
-	
+
 	return lf->id;
 }
 int log_txt_file_rm(int hndl)
 {
 	for (int i = 0; i < txt_callb_length; i++) {
-		if (txt_callb_a[i].call != log_txt_file_out 
-				|| ((struct logfile *)txt_callb_a[i].inf)->id != hndl) 
+		if (txt_callb_a[i].call != log_txt_file_out
+				|| ((struct logfile *)txt_callb_a[i].inf)->id != hndl)
 			continue;
-		lprintf(INF "Closing log file with handle %i.\n", 
+		lprintf(INF "Closing log file with handle %i.\n",
 				((struct logfile *)txt_callb_a[i].inf)->id);
 		fclose(((struct logfile *)txt_callb_a[i].inf)->f);
 		free(txt_callb_a[i].inf);
@@ -410,12 +410,12 @@ int log_txt_file_rm(int hndl)
 	}
 	return 1;
 }
-static void log_txt_file_rmall() 
+static void log_txt_file_rmall()
 {
 	for (int i = txt_callb_length - 1; i >= 0; i--) {
 		if (txt_callb_a[i].call != log_txt_file_out)
 			continue;
-		lprintf(INF "Closing log file with handle %i.\n", 
+		lprintf(INF "Closing log file with handle %i.\n",
 				((struct logfile *)txt_callb_a[i].inf)->id);
 		fclose(((struct logfile *)txt_callb_a[i].inf)->f);
 		free(txt_callb_a[i].inf);
@@ -427,7 +427,7 @@ static void log_txt_file_rmall()
 static int log_argcb(const char *arg, int size)
 {
 	if (size == 7 && !memcmp(arg, "--help", 6)) {
-		lprintf(TXT "  %-27s %s\n", "-o, --log-stdout[=t/false]", 
+		lprintf(TXT "  %-27s %s\n", "-o, --log-stdout[=t/false]",
 				"Use the stdout stream for loglvls not going to stderr.");
 		lprintf(TXT "  %-27s %s\n", "--log-stderr-thres=LOGLVL",
 				"Set the threshold at which messages are printed to stderr.");
@@ -453,7 +453,7 @@ static int log_argcb(const char *arg, int size)
 
 		const char *prm = NULL;
 		if (arg[i] == '=') prm = arg + i + 1;
-		else if (arg[i] != '\0' || !(prm = arg_peek(1))) 
+		else if (arg[i] != '\0' || !(prm = arg_peek(1)))
 			return 0;
 
 		log_txt_file(prm, clear, write, follow, no_sgt);
@@ -462,20 +462,20 @@ static int log_argcb(const char *arg, int size)
 	} else if (size >= 13 && !memcmp(arg, "--log-stdout", 12)) {
 		const char *prm = NULL;
 		if (arg[12] == '=') prm = arg + 13;
-		else if (arg[12] != '\0' || !(prm = arg_peek(1))) 
+		else if (arg[12] != '\0' || !(prm = arg_peek(1)))
 			return 0;
-		
+
 		int b = arg_bool(prm);
 		if (b == -1 && arg[12] == '=')
 			lprintf( WRN "Invalid boolean parameter '%s'\n", prm);
-		
+
 		if (prm == NULL || b < 0) {
 			out_use = 1;
 			lputs(INF "Logging to stdout enabled.");
 			return 1;
 		}
 		out_use = b;
-		lprintf(INF "Logging to stdout %s.\n", 
+		lprintf(INF "Logging to stdout %s.\n",
 				out_use ? "enabled" : "disabled");
 		return arg[12] == '=' ? 1 : 2;
 	} else if (size == 3 && arg[0] == '-' && arg[1] == 'o') {
@@ -487,7 +487,7 @@ static int log_argcb(const char *arg, int size)
 	} else if (size >= 19 && !memcmp(arg, "--log-stderr-thres", 18)) {
 		const char *prm = NULL;
 		if (arg[18] == '=') prm = arg + 19;
-		else if (arg[18] != '\0' || !(prm = arg_peek(1))) 
+		else if (arg[18] != '\0' || !(prm = arg_peek(1)))
 			return 0;
 
 		if (prm == NULL) {
