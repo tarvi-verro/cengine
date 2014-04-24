@@ -1534,7 +1534,7 @@ int ce_mod_add(const struct ce_mod *mod)
 			goto exitp;
 		}
 		assert(c < (1 << 11));
-		lprintf(DBG "c: %i for %s \n", c, b1.a);
+		/*lprintf(DBG "c: %i for %s \n", c, b1.a);*/
 		b3[b3_length - 1].index = c;
 		/* get ver */
 		for (i += 0; isspace(d[i]); i++);

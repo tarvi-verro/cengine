@@ -423,104 +423,110 @@ static void log_txt_file_rmall()
 	}
 }
 
-/* argument handling */
-static int log_argcb(const char *arg, int size)
-{
-	if (size == 7 && !memcmp(arg, "--help", 6)) {
-		lprintf(TXT "  %-27s %s\n", "-o, --log-stdout[=t/false]",
-				"Use the stdout stream for loglvls not going to stderr.");
-		lprintf(TXT "  %-27s %s\n", "--log-stderr-thres=LOGLVL",
-				"Set the threshold at which messages are printed to stderr.");
-		lprintf(TXT "  %-27s %s\n", "",
-				"Valid LOGLVL values are: DBG, TXT, INF, WRN, ERR");
-		lprintf(TXT "  %-27s %s\n", "--log-file-wfce=FILE",
-				"Open log FILE and clear(c) it, paste history(w) and "
-				"follow(f).");
-		lprintf(TXT "  %-27s %s\n", "", "Additionally filter esc sequences(e).");
-	} else if (size >= 13 && !memcmp(arg, "--log-file-", 11)) {
-		int follow = 0;
-		int write = 0;
-		int clear = 0;
-		int no_sgt = 0;
-		int i;
-		for (i = 11; arg[i] != '\0' && arg[i] != '='; i++) {
-			if (arg[i] == 'w')	write = 1;
-			else if (arg[i] == 'f') follow = 1;
-			else if (arg[i] == 'c') clear  = 1;
-			else if (arg[i] == 'e') no_sgt = 1;
-			else return 0;
-		}
+/* options */
+#include "ce-opt.h"
+static inline int log_optcb_stderr_thres(const char *arg)
+{ /* --log-stderr-thres LOGLVL */
+	/* (size >= 19 && !memcmp(arg, "--log-stderr-thres", 18)) */
+	assert(arg != NULL); /* not optional */
 
-		const char *prm = NULL;
-		if (arg[i] == '=') prm = arg + i + 1;
-		else if (arg[i] != '\0' || !(prm = arg_peek(1)))
-			return 0;
-
-		log_txt_file(prm, clear, write, follow, no_sgt);
-		return arg[i] == '=' ? 1 : 2;
-
-	} else if (size >= 13 && !memcmp(arg, "--log-stdout", 12)) {
-		const char *prm = NULL;
-		if (arg[12] == '=') prm = arg + 13;
-		else if (arg[12] != '\0' || !(prm = arg_peek(1)))
-			return 0;
-
-		int b = arg_bool(prm);
-		if (b == -1 && arg[12] == '=')
-			lprintf( WRN "Invalid boolean parameter '%s'\n", prm);
-
-		if (prm == NULL || b < 0) {
-			out_use = 1;
-			lputs(INF "Logging to stdout enabled.");
-			return 1;
-		}
-		out_use = b;
-		lprintf(INF "Logging to stdout %s.\n",
-				out_use ? "enabled" : "disabled");
-		return arg[12] == '=' ? 1 : 2;
-	} else if (size == 3 && arg[0] == '-' && arg[1] == 'o') {
-		if (out_use == 1)
-			return 1;
-		out_use = 1;
-		lputs(INF "Logging to stdout enabled.");
-		return 1;
-	} else if (size >= 19 && !memcmp(arg, "--log-stderr-thres", 18)) {
-		const char *prm = NULL;
-		if (arg[18] == '=') prm = arg + 19;
-		else if (arg[18] != '\0' || !(prm = arg_peek(1)))
-			return 0;
-
-		if (prm == NULL) {
-			lputs(WRN "Missing LOGLVL.");
-			return 1;
-		}
-
-		if (strlen(prm) != 3) {
-			lprintf(WRN "Invalid LOGLVL: '%s'\n", prm);
-			return arg[18] == '=' ? 1 : 2;
-		}
-		else if (!memcmp(prm,"DBG",3)) log_stderr_threshold(DBG);
-		else if (!memcmp(prm,"TXT",3)) log_stderr_threshold(TXT);
-		else if (!memcmp(prm,"INF",3)) log_stderr_threshold(INF);
-		else if (!memcmp(prm,"WRN",3)) log_stderr_threshold(WRN);
-		else if (!memcmp(prm,"ERR",3)) log_stderr_threshold(ERR);
-		else {
-			lprintf(WRN "Invalid LOGLVL: '%s'\n", prm);
-			return arg[18] == '=' ? 1 : 2;
-		}
-		lprintf(INF "Log stderr level is now %s.\n", prm);
-		return arg[18] == '=' ? 1 : 2;
-
+	if (strlen(arg) != 3) {
+		lprintf(WRN "Invalid LOGLVL: '"lBLD_"%s"_lBLD"'\n", arg);
+		return -1;
 	}
+	else if (!memcmp(arg,"DBG",3)) log_stderr_threshold(DBG);
+	else if (!memcmp(arg,"TXT",3)) log_stderr_threshold(TXT);
+	else if (!memcmp(arg,"INF",3)) log_stderr_threshold(INF);
+	else if (!memcmp(arg,"WRN",3)) log_stderr_threshold(WRN);
+	else if (!memcmp(arg,"ERR",3)) log_stderr_threshold(ERR);
+	else {
+		lprintf(WRN "Invalid LOGLVL: '"lBLD_"%s"_lBLD"'\n", arg);
+		return -1;
+	}
+	lprintf(INF "Log stderr level is now "lBLD_"%s"_lBLD".\n", arg);
 	return 0;
 }
+static inline int log_optcb_stdout(const char *arg)
+{ /* -o, --log-stdout [true/f] */
+	/* (size >= 13 && !memcmp(arg, "--log-stdout", 12))  */
+	int b = optarg_bool(arg);
+	if (b == -1) {
+		lprintf(WRN "Invalid boolean parameter '"lBLD_"%s"_lBLD"'\n", arg);
+		return -1;
+	}
+	if (b < 0) {
+		out_use = 1;
+		lputs(INF "Logging to stdout enabled.");
+		return 0;
+	}
+	out_use = b;
+	lprintf(INF "Logging to stdout "lF_BLUE"%s"_lF".\n",
+			out_use ? "enabled" : "disabled");
+	return 0;
+}
+static inline int log_optcb_file(const char *arg)
+{ /* --log-file=[wfce,]FILE */
+	assert(arg != NULL); /* not optional */
+	int follow = 0;
+	int write = 0;
+	int clear = 0;
+	int no_sgt = 0;
+	int i;
+	int c;
+	for (c = 0; arg[c] != '\0' && arg[c] != ','; c++);
+	if (arg[c] != ',') {
+		return -1;
+	} else if (arg[c + 1] == '\0') {
+		lprintf(WRN "No FILE specified.\n");
+		return -1;
+	}
+
+	for (i = 0; i < c; i++) {
+		if (arg[i] == 'w')	write = 1;
+		else if (arg[i] == 'f') follow = 1;
+		else if (arg[i] == 'c') clear  = 1;
+		else if (arg[i] == 'e') no_sgt = 1;
+		lprintf(WRN "Invalid flag '%c'. Valid flags are 'wfce'.\n", arg[i]);
+		return -1;
+	}
+
+	log_txt_file(arg + c + 1, clear, write, follow, no_sgt);
+	return 0;
+}
+
+static int log_optcb(int index, const char *optarg)
+{
+	switch (index) {
+		case 0: return log_optcb_stdout(optarg);
+		case 1: return log_optcb_stderr_thres(optarg);
+		case 2: return log_optcb_file(optarg);
+	};
+	assert(1 == 3); /* this should not be reached */
+}
+static struct optsection log_optsection = {
+	.label = "Logging:",
+	.callback = log_optcb,
+	.opt_a = {
+		{ ARG_OPTIONAL, 'o', "log-stdout", "t/false\t"
+			"Use the stdout stream for logs below stderr threshold." },
+		{ ARG_REQUIRED, '\0', "log-stderr-thres", "LOGLVL\t"
+			"Set the threshold at which messages are printed to "
+			"stderr. Where LOGLVL must be one of: DBG, TXT, INF, WRN, ERR." },
+		{ ARG_REQUIRED, '\0', "log-file", "wfce,FILE\t"
+			"Open log FILE and clear(c) it, paste history(w), "
+			"follow(f) and filter escape sequences(e)." },
+		{ 0, '\0', NULL, NULL },
+	},
+};
+int log_opt_added = 0;
 static void __init log_init_argcb()
 {
-	arg_callb_add(log_argcb);
-	lputs(DBG "Logging arguments hooked.");
+	log_opt_added = opt_add(ce_options, &log_optsection) >= 0;
+	/*lputs(DBG "Logging arguments hooked.");*/
 }
 static void __exit log_exit_argcb()
 {
-	arg_callb_rm(log_argcb);
-	lputs(DBG "Logging arguments removed.");
+	if (log_opt_added)
+		opt_rm(ce_options, &log_optsection);
+	/*lputs(DBG "Logging arguments removed.");*/
 }

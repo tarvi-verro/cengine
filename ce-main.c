@@ -1,6 +1,6 @@
 #include <ce-aux.h>
 #include <ce-log.h>
-#include <ce-arg.h>
+#include <ce-opt.h>
 #include <ce-mod.h>
 #include <stddef.h> /* NULL */
 #include <stdlib.h> /* exit(), EXIT_SUCCESS */
@@ -35,7 +35,7 @@ static void __exit mod_exit()
 
 extern size_t ce_mod_memcnt();
 extern size_t ce_log_memcnt();
-int main(int argc, const char **args)
+int main(int argc, char * const *args)
 {
 	if (ce_main_mod_id == -1) {
 		lputs(ERR "cengine-main mod not defined at main().");
@@ -50,7 +50,7 @@ int main(int argc, const char **args)
 
 
 
-	arg_push_a(argc - 1, args + 1);
+	opt_parse(ce_options, argc, args, 1);
 
 	int err = ce_mod_use(modid, "");
 	if (err < 0)

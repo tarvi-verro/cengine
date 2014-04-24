@@ -16,7 +16,7 @@
  *
  * 	110	ce-log.c lprintf(), lputs() and log_* fncs
  *
- * 	120	ce-arg.c arg_* fncs
+ * 	120	ce-opt.c ce_options
  *
  * 	130	ce-mod.c
  *
@@ -76,65 +76,5 @@ int lprintf(const char *format, ...)
  * Return:	characters written to log
  */
 int lputs(const char *s);
-
-
-/* ce-arg.c */
-/**
- * DOC: Argument introduction
- * To share arguments between multiple modules, each module that would expect
- * input arguments, can register a callback function for receiving arguments.
- *
- * Any main() functions are expected to call arg_push_a() to push the arguments
- * (defined in ce-arg.h).
- *
- * Unlike conventional arguments passed to main(), this system allows for new
- * arguments to be added at run-time.
- *
- * To list a callback, use arg_callb_add() and to remove it once your module is
- * being unloaded, arg_callb_rm(). These two functions should be called from
- * functions marked with the attributes %__init and %__exit respectively. This
- * ensures that your module will work as a plug-in and won't horribly crash the
- * entire program when an argument is passed to a registered function that's
- * been since unloaded.
- */
-
-/**
- * arg_callb_add() - add a callback to receive the main-like arguments
- * @cb:		callback that will be called when an argument is received,
- * 		this function should return the amount of arguments
- * 		captured(0 if none so the current will also be checked by other
- * 		callbacks, 1 if only the given argument was captured, and 2 or
- * 		more if you expected extra arguments and verified them using
- * 		arg_peek())
- */
-void arg_callb_add(int (*cb)(const char *arg, int argsize));
-
-/**
- * arg_callb_rm() - remove a previously added callback function
- * @cb:		callback to remove
- *
- * Return:	0 on success, any non-zero integer on failure
- *
- * 		1 when such callback is not listed
- */
-int arg_callb_rm(int (*cb)(const char *, int));
-
-/**
- * arg_peek() - peek forward next arguments(for arg callbacks only)
- * @forw:	how many iterations from current to get the argument from
- *
- * Return:	%NULL if there's no argument at current + @forw,
- * 		argument otherwise
- */
-const char *arg_peek(int forw);
-
-/**
- * arg_bool() - check given string against a set of acceptable boolean values
- * @arg:	string to check
- *
- * Return:	1 if @arg is "true"-like, 0 if "false"-like or -1 if it its
- * 		yellow or -2 if nothing's passed.
- */
-int arg_bool(const char *arg);
 
 #endif /* ndef _CE_AUX_H */
