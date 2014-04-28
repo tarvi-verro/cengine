@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>	/* memcmp, strlen */
 #include <ctype.h>	/* isspace */
+#include <stdio.h>	/* snprintf */
 #include <assert.h>
 #include "xf-htable.h"
 #include "xf-escg.h"

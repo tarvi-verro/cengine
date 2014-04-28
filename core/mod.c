@@ -698,7 +698,7 @@ static int refb_fcn_ref(struct refb *b, int fcn_index);
 static int refb_fcn_unref(struct refb *b, int fcn_index);
 static int refb_fcn_cnt(struct refb *b, int fcn_index);
 
-#include "ce-mod-refb.c"
+#include "mod-refb.c"
 
 __attribute__((constructor(130))) static void ce_mod_init()
 {

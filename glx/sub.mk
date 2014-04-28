@@ -1,0 +1,3 @@
+
+SRC += glx/window.c
+

@@ -1,20 +1,40 @@
+# Info about building this file can be obtained from:
+#  http://make.paulandlesley.org/autodep.html
+#  http://miller.emu.id.au/pmiller/books/rmch/
+#  http://mad-scientist.net/make/rules.html
 
-CC = gcc
+# Makes the .d header dependency connections
+MKDEP = gcc -MM -MG $(CFLAGS) "$*.c" \
+	| sed -e "s@^\(.*\)\:@$*.d $*.o\:@" > $@
 
-INCL	= -IeXtFnc -Iinclude -include include/memcnt.h
-LIB	= -ldl
 
-FILES	 = ce-log.c
-FILES	+= ce-opt.c
-FILES	+= ce-mod.c
-FILES	+= ce-main.c
-FILES	+= glx-window.c
-FILES	+= memcnt.c
-#FILES	+= asdf.c
+#VPATH = eXtFnc:include
 
-MACROS	+= -DCE_VERSION_MAJOR=0
-MACROS	+= -DCE_VERSION_MINOR=2
-MACROS	+= -DCE_VERSION_REVISION=11
+CC ?= gcc
+# applied via implicit rule
+CFLAGS += -Wall -std=c99 -IeXtFnc -Iinclude # -pthread
+LDFLAGS := # -pthread -rdynamic -fPIC
+SRC :=
+OBJ :=
 
-default:
-	$(CC) $(INCL) -Wall -std=c99 -pthread -rdynamic -fPIC $(MACROS) $(FILES) $(LIB) -o"cengine"
+# Subfiles should append .c files to SRC
+include core/sub.mk
+include glx/sub.mk
+
+
+OBJ += $(patsubst %.c, %.o, $(filter %.c, $(SRC)))
+
+
+all:	$(OBJ)
+	$(CC) -o "cengine" $(CFLAGS)$(LDFLAGS)$(OBJ)
+
+%.d: %.c
+	@$(MKDEP)
+
+-include $(SRC:%.c=%.d)
+
+clean:
+	rm -f cengine $(OBJ) \
+		$(patsubst %.o, %.d, $(OBJ))
+
+.PHONY: all clean
