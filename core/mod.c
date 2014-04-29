@@ -1838,7 +1838,8 @@ int ce_mod_use(int mod_id, const char *use)
 
 __attribute__((destructor(65001))) static void root_mod_exit()
 {
-	mod_unload(top_use, root_mod);
+	if (root_mod >= 0 && mods_a[root_mod].loaded)
+		mod_unload(top_use, root_mod);
 }
 
 
