@@ -6,6 +6,7 @@
 #include <stdlib.h> /* exit(), EXIT_SUCCESS */
 #include <stdint.h>
 #include <assert.h>
+#include <unistd.h> /* sleep */
 
 static int ce_main_mod_id = -1;
 static void __init mod_init()
@@ -14,7 +15,7 @@ static void __init mod_init()
 		.comment = "Program start point was in ce-main.c.",
 		.def = "ce-main-c 0:2.8 | ce-entry-pt 0:2.8; "
 			"ce-exp+test; ce-exp[] 0:2.8",
-		.use = "ce-window",
+		.use = "",
 		.load = NULL,
 		.unload = NULL,
 	};
@@ -52,10 +53,12 @@ int main(int argc, char * const *args)
 
 	opt_parse(ce_options, argc, args, 1);
 
-	int err = ce_mod_use(modid, "");
+	int err = ce_mod_use(modid, "root-window");
 	if (err < 0)
-		lprintf(ERR "Initializing ce-window failed: %s\n",
+		lprintf(ERR "Initializing ce-main failed: %s\n",
 				ce_mod_strerr(err));
+
+	sleep(2); /* main loop here? give control over? */
 
 #ifdef MEMCNT_ENABLED
 	//memcnt_status(stderr);
