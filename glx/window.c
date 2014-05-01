@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <string.h>	/* memcpy */
 #include <stdlib.h>	/* malloc */
+#include <stdio.h>	/* sscanf */
 #include <X11/Xlib.h>	/* Display */
 #include <GL/glx.h>	/* glXCreateContext */
 
