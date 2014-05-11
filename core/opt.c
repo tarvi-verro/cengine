@@ -349,6 +349,7 @@ static int opt_help_i(struct optset *set, struct optid opti, int colspacing)
 		/*off += sizeof(lBLD_ _lBLD) - 1;*/
 		helpoff = y + 1;
 	}
+	assert(n + 1 < blen); /* otherwise memoryleak */
 
 
 	lprintf(TXT "  "lBLD_"%-*s"_lBLD"  %s\n", colspacing + off, b, o->help + helpoff);
