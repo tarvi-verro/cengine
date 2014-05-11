@@ -4,23 +4,23 @@
 /**
  * DOC: api for modules to handle changes in dependencies
  * DOC:	Example changes:
- * 	scene is switched
+ *	scene is switched
  *
- * 	scenebuilder is unloaded/loaded
+ *	scenebuilder is unloaded/loaded
  *
- * 	streamer's files are dropped as scene is switched, though some might
- * 	stay
+ *	streamer's files are dropped as scene is switched, though some might
+ *	stay
  *
- * 	input methods are switched
+ *	input methods are switched
  * DOC:	Constants
- * 	menu mod (ESC settings and what have you)
+ *	menu mod (ESC settings and what have you)
  *
- * 	console
+ *	console
  * DOC: How should changes happen? 0.2.08
  * .def = "glfw-ce:2.7.8 | glfw-less:2.7.8; ge-window; ce-input; ce-loop"
  * .comment = "wrapper to provide cengine functionality"
  * .use = "&glfw-sth" // to include above mod to be initialized only after
- * 		given mod
+ *		given mod
  *
  * .def = "glfw{2.7.8} | glfw:2.7.8; glfw-less:2.7.8"
  * .comment = "glfw functionality, this doesn't include "
@@ -43,10 +43,10 @@
  * .use = "ge-effect+particle-{sparks,fire,smoke}; ce-main-ctrl=frame-loop"
  *
  * .def = "alsa-sound | ce-sound"
- * 	ce_mod_rq()
- * 	ce_mod_rm()
+ *	ce_mod_rq()
+ *	ce_mod_rm()
  *
- * 	ce_mod_rq("ce-effect+{sparks,sun,smoke,airdistortion};ce-window")
+ *	ce_mod_rq("ce-effect+{sparks,sun,smoke,airdistortion};ce-window")
  *
  * It is only required to specify the outermost extension.
  */
@@ -55,15 +55,15 @@
  * @comment:	some words describing your module
  * @def:	following format "[mod name]|[implements 1],[implements 2]..."
  * @use:	modules that must be loaded before given mod's @load can be
- * 		called; additionally prepend the implementation with: '!' -
- * 		incompatible, '#' - load by the end of init process (by
- * 		loads it after everything else) - you can use this to
- * 		push time-consuming initialisations towards the end, so if one
- * 		fails, the init fails in less time, '&' - load immediately
- * 		after current mod
+ *		called; additionally prepend the implementation with: '!' -
+ *		incompatible, '#' - load by the end of init process (by
+ *		loads it after everything else) - you can use this to
+ *		push time-consuming initialisations towards the end, so if one
+ *		fails, the init fails in less time, '&' - load immediately
+ *		after current mod
  * @load:	function that initializes the module or %NULL if given module
- * 		doesn't require initialisation; the function should return
- * 		negative if the module initialisation failed
+ *		doesn't require initialisation; the function should return
+ *		negative if the module initialisation failed
  * @unload:	the module is no longer required, free up associated resources
  *
  * Calling @load after @unload must be valid.
@@ -86,10 +86,10 @@ struct ce_mod {
 /**
  * ce_mod_use() - initializes specified functionalities
  * @mod_id:	the module that requires these to be initialized, as returned
- * 		by ce_mod_add()
+ *		by ce_mod_add()
  * @use:	modules that must be loaded before given function returns
- * 		successfully, see &struct ce_mod for more accurate
- * 		specification
+ *		successfully, see &struct ce_mod for more accurate
+ *		specification
  *
  * Main-level initialisation:
  * The program main() function is expected to have a mod with 'ce-main'
@@ -111,7 +111,7 @@ int ce_mod_use(int mod_id, const char* use);
  * @mod:	module to add
  *
  * Return:	added module's unique identifier on success, negative value on
- * 		failure
+ *		failure
  */
 int ce_mod_add(const struct ce_mod *mod);
 
@@ -120,7 +120,7 @@ int ce_mod_add(const struct ce_mod *mod);
  * @mod_id:	identifier of the module to remove as returned by ce_mod_add()
  *
  * Return:	0 on success, negative on error (current implementation
- * 		asserts all failure cases)
+ *		asserts all failure cases)
  */
 int ce_mod_rm(int mod_id);
 const char *ce_mod_strerr(int err);
