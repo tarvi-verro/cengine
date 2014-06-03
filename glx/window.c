@@ -136,6 +136,7 @@ static int optcb(int index, const char *optarg)
 			width = w;
 			height = h;
 		}
+		break;
 	case 2:
 		if (win_name)
 			free(win_name);
@@ -145,6 +146,7 @@ static int optcb(int index, const char *optarg)
 		} else {
 			win_name = NULL;
 		}
+		break;
 	}
 	return 0;
 }

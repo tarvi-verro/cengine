@@ -26,7 +26,7 @@ OBJ += $(patsubst %.c, %.o, $(filter %.c, $(SRC)))
 
 
 all:	$(OBJ)
-	$(CC) -o "cengine" $(CFLAGS)$(LDFLAGS)$(OBJ)
+	$(CC) -o "cengine" $(CFLAGS)$(OBJ)$(LDFLAGS)
 
 %.d: %.c
 	@$(MKDEP)
