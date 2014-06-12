@@ -1,0 +1,173 @@
+MODULE SYSTEM INTRODUCTION
+==========================
+
+The cengine module system attempts to solve some difficulties of having
+independent and interchangable parts of the program by providing a layer of
+abstraction for defining a module and describing the elements that are
+provided and required by it.
+
+The associated functions and structures are defined in include/ce-mod.h.
+
+
+Design Goals
+------------
+
+ o Build upon the C-style header/source programming model (where a single
+   header would roughly equal a described interface).
+
+ o Modules should have a safe way to avoid functionality and interaction
+   conflicts.
+
+ o Smart management of the lifetime of modules - they should be initialized
+   only when required.
+
+ o Dynamic loading of modules and helping to avoid hazards of incompatability
+   among different dynamic modules and static modules.
+
+ o Be easily excludable. This means that modules should be writable in a
+   manner that doesn't necessarily require ce-mod to be present in the
+   program. So the module could be plugged into other projects easily if
+   required.
+
+
+BASIC USAGE
+===========
+
+On code load, the module must register itself with ce_mod_add() and when the
+code is unloaded it must remove itself using ce_mod_rm(). An example of this:
+
+	int mymod_id;
+	static void __init mod_init()
+	{
+		struct ce_mod m = {
+			.comment = "This is my test mod.",
+			.def = "mymod | myinterface",
+			.use = "otherinterface",
+			.load = loadfunction,
+			.unload = unloadfunction,
+		};
+		mymod_id = ce_mod_add(&m);
+	}
+	static void __exit mod_exit()
+	{
+		ce_mod_rm(mymod_id);
+	}
+
+Now that the module is registered, when the interface 'myinterface' is
+required, given module will be loaded.
+
+
+FUNCTIONALITY INTERFACES
+========================
+
+An interface identifier follows the model: "[name] [(version)]; ...".
+
+The name should be descriptive of the interface and be helpful in finding the
+header in which the functions making up the interface are found. It is
+recommended to split logical hierarhy using '-'.
+
+The optional version string would be helpful for following iterative changes
+to the functions and to outline API inconsistencies with previous versions.
+Interface identifiers are separated by a semicolon ';'.
+
+Allowed characters in the name and version strings are [A-Za-z0-9], '_' and
+'-'. Other symbols "!#&", "{}[]+~$=" and '?' have special meaning.
+
+Interfaces with same beginning in names can be defined as: "myfnc-{a,b,c} 0.1",
+which will be equilevant to "myfnc-a 0.1; myfnc-b 0.1; myfnc-c 0.1;".
+
+
+A Set of Functions (a header)
+-----------------------------
+
+The simplest interface to describe is a list of exported global functions. It
+can be denoted easily: 'fncname 3:2.1'.
+
+Reporting the list of exported functions to module system has the benefit of
+avoiding dynamic symbol resolution conflicts -- it is assured that loaded
+module's symbols will be used.
+
+
+Discrete Variable Functionality
+-------------------------------
+
+To define functionality that does not export any symbols:
+'fncname~extendedname 3:2.1'. Note that only one of 'fncname~*' will be loaded
+at a given time.
+
+This is useful when only one module should handle some third party library
+functionality (like OpenGL context).
+
+
+Interactive List Interface
+--------------------------
+
+It is possible to define an interface, that has many child interfaces. This
+has two steps: (1) the parent interface is written as 'fncname[] 3:2.1' and
+(2) the child interface(s) denote 'fncname+childname 3:'.
+
+This could be used for binding resources to a module ('resource[];
+resource+generated; resource+somefile') or just to show dependance and
+hierarchy.
+
+
+Interactive Variable Interface
+------------------------------
+
+When a module defines functionality that should be used only by one another
+module at a time, it can describe it as an interface: 'fncname$'. A child
+module (that expands it) will define 'fncname=extendedname'. The child module
+will automatically be dependant on the module defining 'fncname$'.
+
+This is similar to Discrete Variable, but it is expected that a module
+registers the symbols corresponding to 'fncname$'.
+
+If a module requires 'fncname=X' to be defined, but doesn't itself define it,
+it can specify 'fncname=' in the use string. This also forces reload on module
+whenever X changes.
+
+
+VERSIONING
+==========
+
+The version part of an interface can be used to describe changes in features
+and allows the module system to select the most up to date implementation.
+Version parsing follows the format: '[epoch]:[ver].[subver ...]'.
+
+Version checking of numbers assumes all subsequent decimal characters to form
+a single number. Alphabetic characters are compared on a character basis,
+where missing character is less than any character ('ba' is less than 'baa').
+
+The epoch must always match exactly.
+
+
+LOAD ORDER SPECIFIERS
+=====================
+
+When a module specifies it uses an interface for ce_mod_add(), the added
+module's .load() will not be called unless a module specifiying given
+interface is loaded. Likewise ce_mod_use() will return successfully only after
+all the interfaces passed to it are loaded (and returns failure state
+otherwise).
+
+As this might not always be the preferred functionality, some special
+modifiers can be prefixed to the functionality interface names.
+
+  o '&' - Load interface only after given module. By default it will load it
+    immediately after the module, if combined with '#', it will load it by the
+    end of the init process.
+
+    If the functionality interface fails to load, the module using it will be
+    unloaded using .unload(). Make sure the .unload() doesn't assume the
+    functionality is available.
+
+  o '#' - Load by the end of init process. Useful for moving time-consuming
+    stuff to the end of loading process, so other necessary modules failing to
+    load wouldn't bring about unnecessary delays.
+
+    If the functionality fails to load later, .unload() is called on the
+    module that used it with this flag. Make sure the .unload() function
+    doesn't require '#' functionality to have eventually succeeded.
+
+  o '!' - Make sure specified functionality interface will not be loaded.
+
