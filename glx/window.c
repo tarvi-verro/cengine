@@ -20,7 +20,6 @@ static Window win;
 
 static int load()
 {
-	lputs(INF "glx-window load called");
 	dpy = XOpenDisplay(dpy_name);
 	if (!dpy) {
 		lprintf(ERR "Failed to open display "lBLD_"%s"_lBLD"\n",
@@ -104,7 +103,6 @@ exitpt: ;
 }
 static int unload()
 {
-	lputs(INF "glx-window unload called");
 	glXDestroyContext(dpy, ctx);
 	XDestroyWindow(dpy, win);
 	XCloseDisplay(dpy);
