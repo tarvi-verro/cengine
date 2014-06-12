@@ -23,7 +23,7 @@ void log_stderr_threshold(const char *lvlmcro);
 /**
  * log_debug() - enable or disable DBG logs
  * @enable:	%true if messages prepended with %DBG will be logged, %false to
- * 		have them be ignored
+ *		have them be ignored
  */
 void log_debug(int enable);
 
@@ -34,10 +34,10 @@ void log_debug(int enable);
  * @copy:	should log history(since the execution) be copied over
  * @follow:	keep the file open and append log as they are printed?
  * @filter_esc:	should ansi escape codes like Set Graphics Rendering be
- * 		filtered before writing logs to file
+ *		filtered before writing logs to file
  *
  * Return:	negative on failure, positive integer handle on success or
- * 		0 when follow was false.
+ *		0 when follow was false.
  */
 int log_txt_file(const char *file, int clear, int copy, int follow, int filter_esc);
 
@@ -47,7 +47,7 @@ int log_txt_file(const char *file, int clear, int copy, int follow, int filter_e
  *
  * Return:	0 on success.
  *
- * 		1 if such handle is already closed or was never obtained
+ *		1 if such handle is already closed or was never obtained
  */
 int log_txt_file_rm(int hndl);
 

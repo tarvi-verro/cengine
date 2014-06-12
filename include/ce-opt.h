@@ -31,11 +31,11 @@ enum {
  * struct opt - representation of an option
  * @has_arg:	%ARG_NONE, %ARG_REQUIRED or %ARG_OPTIONAL
  * @name_short:	character representation of the option, matched when the
- * 		command line argument started with '-'
+ *		command line argument started with '-'
  * @name_long:	string representation of the option, matched when the command
- * 		line argument started with '--'
+ *		line argument started with '--'
  * @help:	a short description of the option; if @has_arg, this must be
- * 		prepended with 'ARGNAME\t'
+ *		prepended with 'ARGNAME\t'
  *
  * One of @name_short and @name_long may be %NULL (unset).
  */
@@ -50,8 +50,8 @@ struct opt {
  * struct optsection - a group of options with a label
  * @label:	the label unifying these options
  * @callback:	function to call when one of these options has been parsed;
- * 		return any non-null value to print out the help string for
- * 		given index
+ *		return any non-null value to print out the help string for
+ *		given index
  * @opt_a:	array of options, terminated by { %0, %0, %NULL, %NULL }
  */
 struct optsection {
@@ -88,13 +88,13 @@ int opt_rm(struct optset *set, struct optsection *sect);
  * @argc:	argument count in @argv
  * @argv:	argument vector
  * @offset:	the first @argv to parse, skipping all the previous; for
- * 		main() arguments, this would be set to %1 to skip the program
- * 		name
+ *		main() arguments, this would be set to %1 to skip the program
+ *		name
  *
  * The @argc and @argv are typically found passed to program main() function.
  *
  * Return:	Negative on failure, index of @argv containing the first
- * 		non-option or @argc if only options were found.
+ *		non-option or @argc if only options were found.
  */
 int opt_parse(struct optset *set, int argc, char * const argv[], int offset);
 
@@ -105,8 +105,8 @@ int opt_parse(struct optset *set, int argc, char * const argv[], int offset);
  * The purpose is to have uniform argument values.
  *
  * Return:	%1 if @optarg is a %true value, %0 if %false value,
- * 		%-1 if it is yellow and %-2 if @optarg is an empty string
- * 		or %NULL.
+ *		%-1 if it is yellow and %-2 if @optarg is an empty string
+ *		or %NULL.
  */
 int optarg_bool(const char *optarg);
 

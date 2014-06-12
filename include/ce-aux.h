@@ -8,19 +8,19 @@
  * your module components for use in program.
  *
  * DOC: constructor & destructor priority table
- * 	000-100	system implementation functionality
+ *	000-100	system implementation functionality
  *
- * 	101-500	auxiliary components
+ *	101-500	auxiliary components
  *
  *	101	memcnt.c
  *
- * 	110	ce-log.c lprintf(), lputs() and log_* fncs
+ *	110	ce-log.c lprintf(), lputs() and log_* fncs
  *
- * 	120	ce-opt.c ce_options
+ *	120	ce-opt.c ce_options
  *
- * 	130	ce-mod.c
+ *	130	ce-mod.c
  *
- * 	501	other components
+ *	501	other components
  *
  *    65001	ce-mod.c root-mod exit
  */

@@ -11,10 +11,10 @@
  * struct id_t - index and verification bits of identifiers
  * @index:	index in @mods_a
  * @iter:	verification that must match iter in &struct mod_inf %mods_a,
- * 		used to verify that correct module is referenced after an
- * 		index has been re-used
+ *		used to verify that correct module is referenced after an
+ *		index has been re-used
  * @iserr:	MSB of integer representation, when set, @index and @iter
- * 		are invalid, see below for more details
+ *		are invalid, see below for more details
  *
  * If @iserr is set, @index and @iter aren't represented in the value, it
  * should instead be handled as a signed negative integer containing an error
@@ -31,11 +31,11 @@ struct id_t {
  * @fcn_index:	index of the fcn to be initialized in fcns_a
  * @incompat:	if instead of initializing the fcn mustn't be loaded
  * @end:	if the fcn would be preferred to be initialized last (or
- * 		somewhere among the last functionalities)
+ *		somewhere among the last functionalities)
  * @after:	should be initialized after the given mod
  * @ver_len:	length of the version string
  * @ver_off:	offset of the version string in a separate array of
- * 		characters
+ *		characters
  */
 struct use_inf {
 	uint16_t fcn_index : 11; /* max2047 */
@@ -50,7 +50,7 @@ struct use_inf {
  * struct mod_inf_fcn - information about fcn provided in struct mod_inf
  * @index:	index of functionality in fcns_a
  * @ver_len:	length of provided functionality version string in
- * 		&struct mod_inf.additional (after the &struct mod_inf_fcn's)
+ *		&struct mod_inf.additional (after the &struct mod_inf_fcn's)
  */
 struct mod_inf_fcn {
 	uint16_t index : 11; /* max2047 */
@@ -66,25 +66,25 @@ struct mod_inf_fcn {
  * @loading:	%1 if the mod_load() is currently running for module
  * @iter:	used to verify that the index access was correct
  * @fcn_cnt:	count of &struct mod_inf_fcn entries defined by mod in
- * 		@additional
+ *		@additional
  * @additional:	memory containing additional info, if this is %NULL, the
- * 		instance is not used; direct access for defined functionality
- * 		&struct mod_inf_fcn array length @fcn_cnt
+ *		instance is not used; direct access for defined functionality
+ *		&struct mod_inf_fcn array length @fcn_cnt
  * @use_cnt:	amount of static &struct use_inf's in @additional - used
- * 		functionality as reqested by &struct ce_mod.use
+ *		functionality as reqested by &struct ce_mod.use
  * @use_live_cnt:
- * 		how many additional &struct use_inf's in @additional after
- * 		those counted in @use_cnt - used functionality as requested by
- * 		ce_mod_use().
+ *		how many additional &struct use_inf's in @additional after
+ *		those counted in @use_cnt - used functionality as requested by
+ *		ce_mod_use().
  * @use_live_size:
- * 		how much space has been allocated for additional
- * 		&struct use_inf's in @additional(mem allocated for
- * 		@use_live_cnt entries), note however that no version info is
- * 		allocated
+ *		how much space has been allocated for additional
+ *		&struct use_inf's in @additional(mem allocated for
+ *		@use_live_cnt entries), note however that no version info is
+ *		allocated
  * @load:	the function to call for loading the module, returns
- * 		%0 on success
+ *		%0 on success
  * @unload:	function to call for unloading the module, returns %0
- * 		on success
+ *		on success
  *
  * Use mod_inf_name_get() and mod_inf_vers_get() to retrieve the version and
  * name strings.
@@ -94,7 +94,7 @@ struct mod_inf_fcn {
  * index led to this address, it is invalid.
  *
  * Memory layout of additional:
- * Fcn def 	(%0 to @fcn_cnt * sizeof() &struct mod_inf_fcn)
+ * Fcn def	(%0 to @fcn_cnt * sizeof() &struct mod_inf_fcn)
  *
  * Fcn ver strs	(@fcn_cnt * sizeof() &struct mod_inf_fcn to @name_off)
  *
@@ -103,10 +103,10 @@ struct mod_inf_fcn {
  * Ver str	(@name_off + @name_len to @name_off + @name_len + @ver_len)
  *
  * Use infs	(@name_off + @name_len + @ver_len to @name_off + @name_len + @ver_len
- * 			+ sizeof() &struct use_inf * (@use_cnt + @use_live_size))
+ *			+ sizeof() &struct use_inf * (@use_cnt + @use_live_size))
  *
  * Use verstrs	(<end of use infs> to <end of use infs>
- * 			+ <last useinf>->ver_off + <last useinf>->ver_len)
+ *			+ <last useinf>->ver_off + <last useinf>->ver_len)
  */
 struct mod_inf {
 	uint16_t name_off;
@@ -203,7 +203,7 @@ static inline void mod_inf_vers_get(int mod_index, int *len, const char **vers)
  * @uinf_len:	where to output the length of @uinf &struct use_inf array
  * @uinf:	where to output the compiled use info &struct use_inf array
  * @uvers:	where to output the reference to an array of characters
- * 		that are pointed to by &struct use_inf's
+ *		that are pointed to by &struct use_inf's
  */
 static inline void mod_inf_use_get(int mod_index, int* uinf_len,
 		struct use_inf **uinf, char **uvers)
@@ -243,23 +243,23 @@ struct xf_strb fcn_name; /* functionality names */
 /**
  * struct fcn_inf - information about functionality
  * @mod_index:	index of the mod for given fcn in mods_a or count of mods
- * 		providing given functionality if @mod_count is set
+ *		providing given functionality if @mod_count is set
  * @mod_count:	if set, @mod_index will specify amount of mods providing given
- * 		functionality
+ *		functionality
  * @name_off:	offset of name in fcn_name.a
  * @name_len:	length of name in fcn_name.a starting from @name_off
  * @variable:	%0 if the fcn can not be expanded, %1 if there can be one
- * 		child loaded at a given time, %2 if there can be indefinite
- * 		children concurrently loaded
+ *		child loaded at a given time, %2 if there can be indefinite
+ *		children concurrently loaded
  * @expands:	whether or not given mod is expanding another fcn
  * @loaded:	%0 if it's not loaded, %1 if a module providing given fcn is
- * 		loaded
+ *		loaded
  * @defined:	whether or not the full specification is known from .def or
- * 		from a fcn's expansion string, this is so overriding a fcn
- * 		previously from .use to a variable wouldn't yield an error
+ *		from a fcn's expansion string, this is so overriding a fcn
+ *		previously from .use to a variable wouldn't yield an error
  * @parent:	if @expands is %1, this holds the index of parent fcn
  * @child_cnt:	if @variable is %2 or %1, this holds the number of fcn that
- * 		can expand it, or %31 if it has %31+ children
+ *		can expand it, or %31 if it has %31+ children
  *
  * If @mod_index is %0 and @mod_count is %1, no modules provide given
  * functionality.
@@ -377,11 +377,11 @@ static int refb_fcn_cnt(struct refb *b, int fcn_index);
  * fcn_get() - get fcn for given fcn name
  * @fcn_nl:	length of the name string in @fcn_n
  * @fcn_n:	fcn name string to get, this should contain '+'; if
- * 		expandability is specified via @variable, it will not expect
- * 		to find '$' or '[]' in the end(vals %1, %0, %-4)
+ *		expandability is specified via @variable, it will not expect
+ *		to find '$' or '[]' in the end(vals %1, %0, %-4)
  * @variable:	%2, %1, %0, or %-3 if it is determined by the presence of '$'
- * 		or '[]' in the end of $fcn_n or %-4 if it remains unknown (use
- * 		strings - use_compile())
+ *		or '[]' in the end of $fcn_n or %-4 if it remains unknown (use
+ *		strings - use_compile())
  *
  * This function either finds the existing entry and verifies its properties
  * or if no existing entry is present, it inserts a new entry with specified
@@ -568,14 +568,14 @@ static int fcn_provider_get(int fcn_index)
  * @mod_index:	the provider that given fcn entry should specify
  * @fcn_nl:	length of the function name in @fcn_n
  * @fcn_n:	functionality name that should have an entry that points to
- * 		@mod_index(or that the fcn entry's fcn's mod count includes it)
+ *		@mod_index(or that the fcn entry's fcn's mod count includes it)
  *
  * This function parses the module name in def string given to ce_mod_add(),
  * makes sure such entry exists and either increments its providers count or
  * specifies its provider as @mod_index.
  *
  * Return:	A negative value on failure, index of the fcn in fcns_a
- * 		otherwise.
+ *		otherwise.
  */
 static int mod_fcn_set(int mod_index, int fcn_nl, const char *fcn_n)
 {
@@ -1074,7 +1074,7 @@ static int mod_unload(struct refb *refs, int mod_index)
  * @b:		second ver string
  *
  * Return:	Positive if @a is greater than @b, negative if @b is greater
- * 		than @a, %0 if they're equal.
+ *		than @a, %0 if they're equal.
  */
 static int ver_compare(int a_len, const char *a, int b_len, const char *b)
 {
@@ -1090,7 +1090,7 @@ static int ver_compare(int a_len, const char *a, int b_len, const char *b)
  * @v:		string to test
  *
  * Return:	Negative if they're incompatible, positive if they're
- * 		compatible.
+ *		compatible.
  */
 static int ver_compatible(int t_len, const char *t, int v_len, const char *v)
 {
@@ -1106,7 +1106,7 @@ static int ver_compatible(int t_len, const char *t, int v_len, const char *v)
  * @prov_ver:	provided version string output when given fcn is provided
  *
  * Return:	negative if given mod doesn't provide given fcn, positive if
- * 		it does
+ *		it does
  */
 static int mod_inf_fcn_get(int mod_index, int fcn_index, int *prov_ver_l,
 		const char **prov_ver)
@@ -1305,13 +1305,13 @@ exitpt:	;
 /**
  * use_exec() - executes use information yielded by use_compile
  * @refs:	&struct refb that is used to keep the information on what
- * 		functionality/mod is required and what can be uninitialized on
- * 		demand
+ *		functionality/mod is required and what can be uninitialized on
+ *		demand
  * @mod_index:	the module currently being initialized
  * @in_len:	how many &struct use_inf's has been defined in @in
  * @in:		&struct use_inf's that specify the mods to initialize
  * @vers:	where the associated version strings are stored (as referenced
- * 		to by &struct use_inf)
+ *		to by &struct use_inf)
  *
  * Return:	negative on failure
  */
@@ -1376,9 +1376,9 @@ exitpt:	;
  * @out:	output array of &struct use_inf's, of length @out_l
  * @vers_len:	total length of version strings in @vers
  * @vers:	version string - note that individual versions are not null
- * 		seperated from eachother, strlen(@vers) equals @vers_len,
- * 		however the null terminator in the end of all the version
- * 		strings is not required by use_exec().
+ *		seperated from eachother, strlen(@vers) equals @vers_len,
+ *		however the null terminator in the end of all the version
+ *		strings is not required by use_exec().
  *
  * Note that both @out and @vers are of temporary, in that when use_compile()
  * is called again, their contents will change.
@@ -1750,7 +1750,7 @@ static int mod_use(int mod_index, const char *use)
 		/* count the length of static vers */
 		int l;
 		struct use_inf *u;
-	       	mod_inf_use_get(mod_index, &l, &u, NULL);
+		mod_inf_use_get(mod_index, &l, &u, NULL);
 		int vers_len = !(minf->use_cnt) ? 0 : u[minf->use_cnt - 1].ver_off
 			+ u[minf->use_cnt - 1].ver_len;
 

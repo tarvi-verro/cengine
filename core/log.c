@@ -111,7 +111,7 @@ void log_raw_listen_add(void (*callb)(const char *str))
  *
  * Return:	0 on success
  *
- * 		1 when such callback is not listed
+ *		1 when such callback is not listed
  */
 int log_raw_listen_rm(void (*callb)(const char *str))
 {
@@ -217,12 +217,12 @@ static int out_use = 0;
  * log_txt_conv() - convert raw logs into more readable format
  * @in:		raw log input string to convert
  * @lend:	variable holding whether @in starts with a new line, initialize
- * 		it to 1; alternatively, if the string is expected not to expand
- * 		you can use NULL to disregard keeping this variable between
- * 		calls
+ *		it to 1; alternatively, if the string is expected not to expand
+ *		you can use NULL to disregard keeping this variable between
+ *		calls
  * @llvl:	variable holding current line's level('1'-'5'), if the string
- * 		is not expected to expand you can use %NULL to disregard keeping
- * 		this variable between calls
+ *		is not expected to expand you can use %NULL to disregard keeping
+ *		this variable between calls
  * @out:	function called for writing the converted text
  * @pass:	pass a pointer to @out
  */

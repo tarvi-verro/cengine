@@ -17,9 +17,9 @@
  * @fcns_len:	how many functionalities does &bug hold
  * @mods_len:	how many mods does @mods_used hold
  * @overflow_len:
- * 		how many overflowed
+ *		how many overflowed
  * @overflow_size:
- * 		how many &struct overflow_inf's is there memory for
+ *		how many &struct overflow_inf's is there memory for
  *
  * Use functions refb_construct(), refb_destruct(), refb_cpy(),
  * refb_expand() to handle.

@@ -49,7 +49,7 @@ void memcnt_status(FILE *f)
 {
 	assert(file_a != NULL && mem_a != NULL);
 	fprintf(f, "memcnt status:\n");
-	int i, c = 0; 
+	int i, c = 0;
 	unsigned int tot = 0;
 	struct mem_inf *minf;
 	struct file_inf *finf;
@@ -71,7 +71,7 @@ void memcnt_status(FILE *f)
 			"\tmalloc:  %4i\n"
 			"\tcalloc:  %4i\n"
 			"\trealloc: %4i\n"
-			"\tfree:    %4i\n", cnt_malloc, cnt_calloc, cnt_realloc, 
+			"\tfree:    %4i\n", cnt_malloc, cnt_calloc, cnt_realloc,
 			cnt_free);
 }
 
@@ -84,7 +84,7 @@ __attribute__((constructor(101))) static void memcnt_init()
 	int i;
 	for (i = 0; i < mem_size; i++)
 		mem_a[i].memory = NULL;
-	
+
 
 	xf_strb_construct(file_n, 64);
 	xf_htable_construct(file_l, 4, sizeof(mem_a[0].file),
@@ -152,7 +152,7 @@ static struct mem_inf *mem_get(void *mem)
 		return mem_a + (mem_length - 1);
 	} else {
 		for (i = 0; i < mem_length; i++) {
-			if (mem_a[i].memory != mem) 
+			if (mem_a[i].memory != mem)
 				continue;
 			return mem_a + i;
 		}
@@ -189,7 +189,7 @@ void memcnt_free(const char *file, int line, void *mem)
 
 	//fprintf(stdout, "free(_%p);\n", mem);
 	//
-	
+
 
 	if (mem == NULL) {
 		fprintf(stderr, "memcnt free(NULL) received from %s+%i !\n",
@@ -222,10 +222,10 @@ void *memcnt_realloc(const char *file, int line, void *mem, size_t size)
 	minf->size = (uint32_t) size;
 
 	/*if (nm != mem)
-		fprintf(stdout, "void *_%p = realloc(_%p, %ti); // from %u\n", 
+		fprintf(stdout, "void *_%p = realloc(_%p, %ti); // from %u\n",
 				nm, mem, size, oldsize);
 	else
-		fprintf(stdout, "_%p = realloc(_%p, %ti); // from %u \n", 
+		fprintf(stdout, "_%p = realloc(_%p, %ti); // from %u \n",
 				nm, mem, size, oldsize); */
 
 	return nm;
@@ -239,7 +239,7 @@ void *memcnt_calloc(const char *file, int line, size_t a, size_t b)
 
 	cnt_calloc++;
 	void *m = calloc(a, b);
-	
+
 	//fprintf(stdout, "void *_%p = calloc(%ti, %ti);\n", m, a, b);
 
 	struct mem_inf *minf = mem_get(NULL);
