@@ -165,11 +165,12 @@ static void log_raw_process(int s)
 		time_t ct = time(NULL) - logstart;
 		if (fnd != 2) {
 			xf_strb_insertf(rawb, cs,
-					"%tX:" DBG "((missing log line properties))\n"
-					"%tX:unknown:3:", ct, ct); /* inf lvl  */
+					"%llu:" DBG "((missing log line properties))\n"
+					"%llu:unknown:3:", (long long unsigned) ct, 
+					(long long unsigned) ct); /* inf lvl  */
 		} else {
 //fprintf(stdout, "YYYYY\n");
-			xf_strb_insertf(rawb, cs, "%tX:", ct);
+			xf_strb_insertf(rawb, cs, "%llu:", (long long unsigned) ct);
 		}
 //fprintf(stdout, "ZZZZZ\n");
 

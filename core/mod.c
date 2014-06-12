@@ -1615,8 +1615,8 @@ int ce_mod_add(const struct ce_mod *mod)
 				fin->name_len, fcn_name.a + fin->name_off);
 	};
 
-	xf_strb_appendf(&msgb, "} added. ID %i\n", n);
-	lprintf(msgb.a);
+	xf_strb_appendf(&msgb, "} added. ID %i", n);
+	lprintf("%s\n", msgb.a);
 	xf_strb_destruct(&msgb);
 
 	/*xf_strb_destruct(&b1);*/
