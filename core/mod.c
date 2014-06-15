@@ -1190,7 +1190,8 @@ static int use_exec_fcn_init(struct refb *refs,
 		assert(f->mod_index != 1); /* single mod should be referred to by id */
 		prov_a = malloc(sizeof(prov_a[0]) * f->mod_index);
 
-		int e, prov_length = 0;
+		int e;
+		prov_length = 0;
 		for (e = 0; e < mods_length; e++) {
 			int prov_ver_l;
 			const char *prov_ver;
@@ -1337,8 +1338,11 @@ static int use_exec(struct refb *refs, int mod_index,
 			goto exitpt;
 		}
 
-		if (f->loaded)
+		if (f->loaded) { /* Functionality already loaded, reference it */
+			refb_mod_ref(refs, fcn_provider_get(u->fcn_index));
+			refb_fcn_ref(refs, u->fcn_index);
 			continue;
+		}
 
 		if (f->mod_count == 1 && f->mod_index == 0) {
 			rval = -62;
