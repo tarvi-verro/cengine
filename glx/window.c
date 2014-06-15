@@ -78,7 +78,8 @@ static int load()
 		GLX_GREEN_SIZE, 8,
 		GLX_BLUE_SIZE, 8,
 		GLX_DEPTH_SIZE, 8,
-		GLX_DOUBLEBUFFER,
+		GLX_ALPHA_SIZE, 0,
+		GLX_DOUBLEBUFFER, True,
 		None
 	};
 
@@ -88,6 +89,7 @@ static int load()
 	GLXFBConfig* fbc = glXChooseFBConfig(glx_dpy, scr, visattr, &fbc_cnt);
 	if (!fbc) {
 		rv = -3;
+		lprintf(ERR "No acceptable framebuffer configurations.\n");
 		goto exitpt;
 	}
 	lprintf(DBG "Found "lF_CYA"%i"_lF" glX framebuffer configs.\n", fbc_cnt);
@@ -145,7 +147,7 @@ exitpt: ;
 		sleep(1);
 	}
 	*/
-	return 0;
+	return rv;
 }
 
 static int unload()

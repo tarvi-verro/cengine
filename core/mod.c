@@ -3,6 +3,11 @@
 #include "ce-mod.h"
 #include "xf-htable.h"
 #include "xf-strb.h"
+#define XF_MREGION_EXP_ALLOC(total,initsize,previous) \
+	previous * 2
+#include "xf-mregion.h"
+#define XF_MREGION_EXP_ALLOC(total,initsize,previous) \
+	previous * 2
 #include <stdint.h> /* uint8_t */
 #include <ctype.h> /* isspace */
 #define NAMEINF_UNSPECIF UINT8_MAX
@@ -174,6 +179,7 @@ static inline void mod_inf_name_get(int mod_index, int *len, const char **name)
 	*len = minf->name_len;
 	*name = ((char *) minf->additional) + minf->name_off;
 }
+
 static inline const char *mod_inf_fcn_vers_get(int mod_index)
 {
 	assert(mod_index >= 0 && mod_index < mods_length);
@@ -181,6 +187,7 @@ static inline const char *mod_inf_fcn_vers_get(int mod_index)
 	assert(minf->additional != NULL);
 	return (const char *)(minf->additional + minf->fcn_cnt);
 }
+
 /**
  * mod_inf_vers_get() - get the version string of a mod
  * @mod_index:	index of the mod in mods_a
@@ -238,7 +245,7 @@ static inline void mod_inf_use_get(int mod_index, int* uinf_len,
  */
 static struct refb *top_use = NULL;
 
-struct xf_strb fcn_name; /* functionality names */
+struct xf_mregion *fcn_names = NULL; /* functionality names */
 
 /**
  * struct fcn_inf - information about functionality
@@ -246,8 +253,10 @@ struct xf_strb fcn_name; /* functionality names */
  *		providing given functionality if @mod_count is set
  * @mod_count:	if set, @mod_index will specify amount of mods providing given
  *		functionality
- * @name_off:	offset of name in fcn_name.a
- * @name_len:	length of name in fcn_name.a starting from @name_off
+ * @name_subreg:the subregion of fcn_names the name is in
+ * @name_offset:offset of name from the start of select region
+ * @name_len:	length of name in fcn_names subregion @name_subreg starting from
+ * 		@name_off
  * @variable:	%0 if the fcn can not be expanded, %1 if there can be one
  *		child loaded at a given time, %2 if there can be indefinite
  *		children concurrently loaded
@@ -268,7 +277,8 @@ struct fcn_inf {
 	uint16_t mod_index : 11; /* index of single mod or count of mods providing */
 	uint16_t : 4;
 	uint16_t mod_count : 1; /* if set, mod_index specifies amount of mods instead */
-	uint16_t name_off; /* 32bits */
+	uint16_t name_subreg : 4;
+	uint16_t name_offset : 12; /* max4095 *//* 32bits */
 	uint8_t name_len;
 	uint8_t variable : 2;
 	uint8_t expands : 1;
@@ -284,6 +294,65 @@ static struct fcn_inf *fcns_a;
 /* &struct fcn_inf.parent : 11
  */
 static const int fcns_max = 2047;
+
+static void *xf_mregion_allocv(struct xf_mregion *r, size_t size,
+		int *subreg, int *offset)
+{
+	assert(r != NULL);
+	assert(size > 0);
+	struct xf_mregion_sub *s;
+	int i = 0;
+	for (s = &r->sub; s != NULL; s = s->next) {
+		if (s->size - s->length < size) {
+			i++;
+			continue;
+		}
+		*subreg = i;
+		*offset = s->length;
+		void *rv = s->data + s->length;
+		s->length += size;
+		return rv;
+	}
+	/* Needs more memory */
+	unsigned int total = 0;
+	for (s = &r->sub; 0 == 0; s = s->next) {
+		total += s->size;
+		if (s->next == NULL) break;
+	}
+	unsigned int nsz = XF_MREGION_EXP_ALLOC(total, r->sub.size, s->size);
+	if (nsz < size)
+		nsz = size;
+
+	s->next = malloc(sizeof(struct xf_mregion_sub) + nsz);
+	assert(s->next != NULL);
+	s = s->next;
+
+	s->next = NULL;
+	s->size = nsz;
+	s->length = size;
+
+	*subreg = i;
+	*offset = 0;
+
+	return s->data;
+}
+
+/**
+ * fcn_name() - returns non-terminated functionality name
+ * @f:		functionality whose name is requested
+ *
+ * Return:	the functionality name, without a '\0' terminating it
+ */
+static const char *fcn_name(struct fcn_inf *f)
+{
+	struct xf_mregion_sub *s = &fcn_names->sub;
+	for (int i = 0, l = f->name_subreg; i < l; i++) {
+		s = s->next;
+		assert(s != NULL);
+	}
+	return s->data + f->name_offset;
+}
+
 /**
  * fcn_expand() - ensure fcns_a can hold given amount of members
  * @size:	how many members should fcns_a be able to hold
@@ -459,8 +528,16 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 	struct hashentry def = {
 		.index = fcns_length,
 	};
+	/* Allocate new name (will be removed later if already exists) */
+	int name_add_subreg;
+	int name_add_offset;
+	void *name_add = xf_mregion_allocv(fcn_names, b.length - 1,
+			&name_add_subreg, &name_add_offset);
+	assert(name_add_subreg < 16); /* handle it when fails */
+	assert(name_add_offset < 4096); /* --||-- */
+	memcpy(name_add, b.a, b.length - 1);
 
-	struct hashentry *e = xf_htable_see(fcn_l, b.a, b.length - 1, &def);
+	struct hashentry *e = xf_htable_see(fcn_l, name_add, b.length - 1, &def);
 	struct fcn_inf *f;
 	assert(e != NULL); /* if this actually fails at some point, handle it */
 	if (e->index == fcns_length) {
@@ -481,9 +558,9 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		f = &fcns_a[e->index];
 		f->mod_index = 0;
 		f->mod_count = 1;
-		f->name_off = fcn_name.length - 1;
-		xf_strb_appendf(&fcn_name, "%.*s", fcn_nl, fcn_n);
-		f->name_len = fcn_nl;
+		f->name_offset = name_add_offset;
+		f->name_subreg = name_add_subreg;
+		f->name_len = b.length - 1;
 		f->variable = var; /* def to 0 */
 		f->expands = parent != -1;
 		if (f->expands)
@@ -498,6 +575,7 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 
 		e = xf_htable_see(fcn_l, b.a, b.length - 1, &def);
 	} else {
+		xf_mregion_rewind(fcn_names, name_add);
 		f = &fcns_a[e->index];
 		int refc = top_use != NULL ? refb_fcn_cnt(top_use, e->index) : 0;
 		if (variable != -4 && f->variable != var) {
@@ -706,7 +784,7 @@ __attribute__((constructor(130))) static void ce_mod_init()
 	fcns_a = malloc(sizeof(fcns_a[0]) * fcns_size);
 	xf_htable_construct(fcn_l, 4/*16 buckets*/, sizeof(struct hashentry),
 			xf_hash_hsieh_superfast);
-	xf_strb_construct(&fcn_name, 128);
+	fcn_names = xf_mregion_create(128);
 
 	lputs(INF "Module handler initialized.");
 	lprintf(DBG "Struct sizes in bytes: mod_inf: "lF_BLUE"%tu"_lF", "
@@ -740,7 +818,7 @@ __attribute__((destructor(130))) static void ce_mod_exit()
 		free(top_use);
 	}
 
-	xf_strb_destruct(&fcn_name);
+	xf_mregion_destroy(fcn_names);
 	xf_htable_destruct(fcn_l);
 	int i;
 	for (i = 0; i < mods_length; i++) {
@@ -797,8 +875,8 @@ size_t ce_mod_memcnt()
 	if (fcns_a)
 		cnt += fcns_size * sizeof(fcns_a[0]);
 
-	if (fcn_name.a)
-		cnt += fcn_name.size;
+	if (fcn_names)
+		cnt += xf_mregion_memcnt(fcn_names);
 
 	if (fcn_lookup.buckets)
 		cnt += xf_htable_memcnt(fcn_l);
@@ -911,7 +989,7 @@ static int mod_load(struct refb *refs, int mod_index)
 					"- fcn %.*s already referenced.\n",
 					name_len, name, vers_len, vers,
 					fcns_a[fcn_index].name_len,
-					fcn_name.a + fcns_a[fcn_index].name_off
+					fcn_name(fcns_a + fcn_index)
 					);
 			rval = -103;
 			goto exitp;
@@ -927,7 +1005,7 @@ static int mod_load(struct refb *refs, int mod_index)
 					"- conflicting fcn %.*s provider required.\n",
 					name_len, name, vers_len, vers,
 					fcns_a[fcn_index].name_len,
-					fcn_name.a + fcns_a[fcn_index].name_off
+					fcn_name(fcns_a + fcn_index)
 					);
 			rval = -104;
 			goto exitp;
@@ -937,7 +1015,7 @@ static int mod_load(struct refb *refs, int mod_index)
 					"failure.\n",
 					name_len, name, vers_len, vers,
 					fcns_a[fcn_index].name_len,
-					fcn_name.a + fcns_a[fcn_index].name_off);
+					fcn_name(fcns_a + fcn_index));
 			rval = -105;
 			goto exitp;
 		}
@@ -982,9 +1060,6 @@ static int mod_load(struct refb *refs, int mod_index)
 	minf->loaded = 1;
 	struct mod_inf_fcn *mfcns = minf->additional;
 	for (i = 0, l = minf->fcn_cnt; i < l; i++) {
-		/*lprintf(DBG "BB %i %.*s\n", mod_index,
-				fcns_a[mfcns[i].index].name_len, fcn_name.a
-				+ fcns_a[mfcns[i].index].name_off );*/
 		fcns_a[mfcns[i].index].loaded = 1;
 	}
 
@@ -1038,9 +1113,6 @@ static int mod_unload(struct refb *refs, int mod_index)
 	struct mod_inf_fcn *mfcns = m->additional;
 	for (i = 0, l = m->fcn_cnt; i < l; i++) {
 		int f = mfcns[i].index;
-		/*lprintf(DBG "AA %i %.*s\n", mod_index,
-				fcns_a[mfcns[i].index].name_len, fcn_name.a
-				+ fcns_a[mfcns[i].index].name_off );*/
 		assert(fcns_a[f].loaded);
 		assert(!refb_fcn_cnt(refs, f));
 		fcns_a[f].loaded = 0;
@@ -1173,10 +1245,9 @@ static int use_exec_fcn_init(struct refb *refs,
 			mod_inf_vers_get(f->mod_index, &v_l, &v);
 
 			assert(mods_a[f->mod_index].additional);
-			lprintf(ERR "AA %i\n", f->mod_index);
 			lprintf(ERR "Mod %.*s %.*s specified to provide fcn"
 					" %i:%.*s (%.*s) did not. %i\n", n_l, n, v_l, v,
-					f->mod_index,f->name_len, fcn_name.a + f->name_off,
+					f->mod_index,f->name_len, fcn_name(f),
 					req_ver_l, req_ver, mods_a[f->mod_index]
 					.fcn_cnt);
 		}
@@ -1280,7 +1351,7 @@ static int use_exec_fcn_init(struct refb *refs,
 					lF_RED"%.*s %.*s"_lF
 					" for fcn "lF_RED"%.*s %.*s"_lF".\n",
 					nl, n, vl, v,
-					f->name_len, fcn_name.a + f->name_off,
+					f->name_len, fcn_name(f),
 					req_ver_l, req_ver);
 			prov_a[lst].works = 0;
 			prov_valid--;
@@ -1292,7 +1363,7 @@ static int use_exec_fcn_init(struct refb *refs,
 	/* if (!prov_valid) { */
 	lprintf(ERR "Failed to find a provider mod for fcn "
 			lF_RED"%.*s %.*s"_lF".\n", f->name_len,
-			fcn_name.a + f->name_off, req_ver_l, req_ver);
+			fcn_name(f), req_ver_l, req_ver);
 	rval = -1;
 	/* } */
 
@@ -1354,7 +1425,7 @@ static int use_exec(struct refb *refs, int mod_index,
 		if (tmod < 0) {
 			lprintf(WRN "Cannot find functionality provider for "
 					"%.*s %.*s.\n",
-					f->name_len, f->name_off + fcn_name.a,
+					f->name_len, fcn_name(f),
 					u->ver_len, u->ver_off + vers);
 			rval = -63;
 			goto exitpt;
@@ -1551,7 +1622,7 @@ int ce_mod_add(const struct ce_mod *mod)
 
 		/*lprintf(DBG "FCN parsed - '"lF_CYA"%.*s"_lF"' "
 				"v:'"lF_CYA"%.*s"_lF"'\n",
-				fcns_a[c].name_len, fcn_name.a + fcns_a[c].name_off,
+				fcns_a[c].name_len, fcn_name(fcns_a + c),
 				i - verstart, d + verstart);*/
 
 		int sepfnd = 0;
@@ -1598,6 +1669,7 @@ int ce_mod_add(const struct ce_mod *mod)
 
 	/* initialize the rest */
 	minf->loaded = 0;
+	minf->loading = 0;
 	/*minf->used = 0; // What's the meaning of this? */
 
 	assert(b3_length < (1 << 6) - 1);
@@ -1616,7 +1688,7 @@ int ce_mod_add(const struct ce_mod *mod)
 	for (i = 0; i < minf->fcn_cnt; i++) {
 		struct fcn_inf *fin = fcns_a + minf->additional[i].index;
 		xf_strb_appendf(&msgb, ""lF_YELW"%.*s"_lF"; ",
-				fin->name_len, fcn_name.a + fin->name_off);
+				fin->name_len, fcn_name(fin));
 	};
 
 	xf_strb_appendf(&msgb, "} added. ID %i", n);

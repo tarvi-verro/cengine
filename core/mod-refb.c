@@ -314,7 +314,7 @@ static int refb_fcn_unref(struct refb *b, int fcn_index)
 			lprintf(ERR "Cannot unreference "
 					lF_RED"%.*s"_lF" from 0!!\n",
 					fcns_a[fcn_index].name_len,
-					fcn_name.a + fcns_a[fcn_index].name_off);
+					fcn_name(fcns_a + fcn_index));
 		}
 #endif
 		assert(cc > 0);
