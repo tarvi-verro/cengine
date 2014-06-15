@@ -8,86 +8,132 @@
 #include <stdlib.h>	/* malloc */
 #include <stdio.h>	/* sscanf */
 #include <X11/Xlib.h>	/* Display */
-#include <GL/glx.h>	/* glXCreateContext */
+#include <GL/glx.h>	/* glXChooseVisual */
 
 static char *dpy_name = NULL;
 static char *win_name = NULL;
-static Display *dpy = NULL;
-static GLXContext ctx;
+Display *glx_dpy = NULL;
 static int width = 320;
 static int height = 180;
-static Window win;
+Window glx_win;
+GLXFBConfig glx_fbc;
 
+static void lprintFBConfig(Display *dpy, GLXFBConfig fbc, int id)
+{
+	char idbuf[32];
+	if (id < 0)
+		idbuf[0] = '\0';
+	else
+		snprintf(idbuf, 32, "FB %2i: ", id);
+
+	int smp, bfrs, r, g, b, a, d, s, l, x;
+	XVisualInfo *vis = glXGetVisualFromFBConfig(dpy, fbc);
+	if (!vis)
+		return;
+	glXGetFBConfigAttrib(dpy, fbc, GLX_SAMPLES, &smp);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_SAMPLE_BUFFERS, &bfrs);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_RED_SIZE, &r);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_GREEN_SIZE, &g);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_BLUE_SIZE, &b);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_ALPHA_SIZE, &a);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_DEPTH_SIZE, &d);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_STENCIL_SIZE, &s);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_LEVEL, &l);
+	glXGetFBConfigAttrib(dpy, fbc, GLX_X_VISUAL_TYPE, &x);
+
+	lprintf(DBG "%sSmpl"lBLD_"%02i"_lBLD"sb"lBLD_"%02i"_lBLD", "
+			"r"lF_RED"%02i"_lF"g"lF_GRE"%02i"_lF"b"lF_BLUE"%02i"_lF
+			"a"lBLD_"%02i"_lBLD"d"lF_MAG"%02i"_lF"s"lF_YELW"%02i"_lF
+			"l"lF_WHI"%02i"_lF"x"lULN_"%02x"_lULN"\n",
+			idbuf, smp, bfrs, r, g, b, a, d, s, l, x);
+	XFree(vis);
+}
 static int load()
 {
-	dpy = XOpenDisplay(dpy_name);
-	if (!dpy) {
+	glx_dpy = XOpenDisplay(dpy_name);
+	if (!glx_dpy) {
 		lprintf(ERR "Failed to open display "lBLD_"%s"_lBLD"\n",
 				dpy_name);
 		return -1;
 	}
 
-	/* Creating a glx window */
-	int scr = DefaultScreen(dpy);
-	Window root = RootWindow(dpy, scr);
-
-	int visattr[] = {
-		GLX_RGBA,
-		GLX_RED_SIZE, 1,
-		GLX_GREEN_SIZE, 1,
-		GLX_BLUE_SIZE, 1,
-		GLX_DEPTH_SIZE, 1,
-		GLX_DOUBLEBUFFER,
-		None
-	};
-	XVisualInfo *visinfo = glXChooseVisual(dpy, scr, visattr);
-	if (!visinfo) {
-		lprintf(ERR "Failed to choose visuals.\n");
-		return -2;
-	}
-
-	XSetWindowAttributes xwattr = {
-		.background_pixel = 0,
-		.border_pixel = 0,
-		.colormap = XCreateColormap(dpy, root, visinfo->visual, AllocNone),
-		.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask,
-	};
-	win = XCreateWindow(dpy, root, 0, 0, width, height,
-			0, visinfo->depth, InputOutput, visinfo->visual,
-			CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
-			&xwattr);
-	XSizeHints hints = {
-		.x = 0,
-		.y = 0,
-		.width = width,
-		.height = height,
-		.flags = USSize | USPosition,
-	};
-	XSetNormalHints(dpy, win, &hints);
-	XSetStandardProperties(dpy, win, win_name ? win_name : "A Window Name",
-			"A Window Name Two", None, NULL, 0, &hints);
-
 	int rv = 0;
-	ctx = glXCreateContext(dpy, visinfo, NULL, 1);
-	if (!ctx) {
-		lprintf(ERR "glXCreateContex failed\n");
-		rv = -3;
+
+	/* Verify version */
+	int maj, min;
+	if (!glXQueryVersion(glx_dpy, &maj, &min)
+			|| maj < 1 || (maj == 1 && min < 3)) {
+		lprintf(ERR "Incompatible glX version "lBLD_"%i.%i "_lBLD
+				"(return your software to a museum)!\n",
+				maj, min);
+		rv = -2;
 		goto exitpt;
 	}
 
-	/* Open window */
-	XMapWindow(dpy, win);
-	glXMakeCurrent(dpy, win, ctx);
+	/* Requested visual attributes */
+	int visattr[] = {
+		GLX_RENDER_TYPE, GLX_RGBA_BIT,
+		GLX_X_VISUAL_TYPE, GLX_TRUE_COLOR,
+		GLX_RED_SIZE, 8,
+		GLX_GREEN_SIZE, 8,
+		GLX_BLUE_SIZE, 8,
+		GLX_DEPTH_SIZE, 8,
+		GLX_DOUBLEBUFFER,
+		None
+	};
 
+	/* Searching through FBConfigs */
+	int scr = DefaultScreen(glx_dpy);
+	int fbc_cnt;
+	GLXFBConfig* fbc = glXChooseFBConfig(glx_dpy, scr, visattr, &fbc_cnt);
+	if (!fbc) {
+		rv = -3;
+		goto exitpt;
+	}
+	lprintf(DBG "Found "lF_CYA"%i"_lF" glX framebuffer configs.\n", fbc_cnt);
+	for (int i = 0; i < fbc_cnt; i++) {
+		lprintFBConfig(glx_dpy, fbc[i], i);
+	}
+	glx_fbc = *fbc;
+	XFree(fbc);
+
+	XVisualInfo *vis = glXGetVisualFromFBConfig(glx_dpy, glx_fbc);
+
+	/* Create colourmap */
+	Window root = RootWindow(glx_dpy, scr);
+	XSetWindowAttributes wattr = {
+		.background_pixel = 0,
+		.background_pixmap = None,
+		.border_pixel = 0,
+		.colormap = XCreateColormap(glx_dpy, root, vis->visual,
+				AllocNone),
+		.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask,
+	};
+
+	/* Create window */
+	glx_win = XCreateWindow(glx_dpy, root, 0, 0, width, height,
+			0, vis->depth, InputOutput, vis->visual,
+			CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
+			&wattr);
+	XFree(vis);
+
+	/* Name window */
+	XStoreName(glx_dpy, glx_win, win_name ? win_name : "A Window Name");
+
+	/* Open window */
+	XMapWindow(glx_dpy, glx_win);
 
 exitpt: ;
-	XFree(visinfo);
-	if (rv) {
-		if (rv < -3)
-			glXDestroyContext(dpy, ctx);
-		XDestroyWindow(dpy, win);
-		XCloseDisplay(dpy);
+
+	if (rv <= -2) {
+		XDestroyWindow(glx_dpy, glx_win);
 	}
+	/*if (rv) {
+		if (rv < -3)
+			glXDestroyContext(glx_dpy, ctx);
+		XDestroyWindow(glx_dpy, glx_win);
+		XCloseDisplay(glx_dpy);
+	}*/
 
 	/* testing
 #include <GL/gl.h>
@@ -95,17 +141,17 @@ exitpt: ;
 	for (int i = 0; i < 5; i++) {
 		glClearColor(0.f, 0.f, 1.f / 5.f * i, 1.f);
 		glClear(GL_COLOR_BUFFER_BIT);
-		glXSwapBuffers(dpy, win);
+		glXSwapBuffers(glx_dpy, glx_win);
 		sleep(1);
 	}
 	*/
-	return rv;
+	return 0;
 }
+
 static int unload()
 {
-	glXDestroyContext(dpy, ctx);
-	XDestroyWindow(dpy, win);
-	XCloseDisplay(dpy);
+	XDestroyWindow(glx_dpy, glx_win);
+	XCloseDisplay(glx_dpy);
 	return 0;
 }
 
@@ -148,6 +194,7 @@ static int optcb(int index, const char *optarg)
 	}
 	return 0;
 }
+
 static struct optsection opts = {
 	.label = "Window managment:",
 	.callback = optcb,
@@ -166,8 +213,8 @@ static int glx_window_mod_id = -1;
 static void __init mod_init()
 {
 	struct ce_mod m = {
-		.comment = "Window functionality via glX and POSIX.",
-		.def = "glX | root-window 0:2.13",
+		.comment = "Window functionality via glX and X display server.",
+		.def = "glX | root-window 0:2.13; glx-visual",
 		.use = "",
 		.load = load,
 		.unload = unload,
@@ -176,8 +223,11 @@ static void __init mod_init()
 	int rv = opt_add(ce_options, &opts);
 	assert(rv >= 0);
 }
+
 static void __exit mod_exit()
 {
+	free(dpy_name);
+	free(win_name);
 	assert(glx_window_mod_id != -1);
 	int rv = opt_rm(ce_options, &opts);
 	assert(rv >= 0);

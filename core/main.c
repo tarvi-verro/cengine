@@ -53,7 +53,7 @@ int main(int argc, char * const *args)
 
 	opt_parse(ce_options, argc, args, 1);
 
-	int err = ce_mod_use(modid, "root-window");
+	int err = ce_mod_use(modid, "gl-context 3");
 	if (err < 0)
 		lprintf(ERR "Initializing ce-main failed: %s\n",
 				ce_mod_strerr(err));
