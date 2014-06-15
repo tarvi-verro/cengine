@@ -423,7 +423,7 @@ int opt_parse(struct optset *set, int argc, char * const argv[], int offset)
 			struct optid opti = opt_nshrt_find(set, a[1]);
 			if (opti.sectid == section_max && opti.optid == option_max) {
 				lprintf(WRN "Unrecognized short option \"-"lF_RED"%c"_lF"\"\n", a[1]);
-				continue;
+				break;
 			}
 			struct opt *o = set->section_a[opti.sectid]->opt_a + opti.optid;
 			if (!o->has_arg) {
