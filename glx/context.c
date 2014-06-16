@@ -122,7 +122,7 @@ static int unload()
 
 static int glx_ctx_21_mod_id = -1;
 static int glx_ctx_33_mod_id = -1;
-static void __init link()
+static void __init code_load()
 {
 	/* temporarily 'gl-context 3', soon will be updated to include
 	 * the fact that 1.4 pipeline and 3.0 shader stuff exist
@@ -141,7 +141,7 @@ static void __init link()
 	glx_ctx_33_mod_id = ce_mod_add(&m);
 }
 
-static void __exit unlink()
+static void __exit code_unload()
 {
 	assert(glx_ctx_21_mod_id >= 0);
 	assert(glx_ctx_33_mod_id >= 0);

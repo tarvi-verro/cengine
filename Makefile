@@ -20,6 +20,7 @@ OBJ :=
 # Subfiles should append .c files to SRC
 include core/sub.mk
 include glx/sub.mk
+include scn/sub.mk
 
 
 OBJ += $(patsubst %.c, %.o, $(filter %.c, $(SRC)))

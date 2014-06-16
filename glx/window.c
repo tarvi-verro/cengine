@@ -18,6 +18,11 @@ static int height = 180;
 Window glx_win;
 GLXFBConfig glx_fbc;
 
+void root_win_swapbuffers()
+{
+	glXSwapBuffers(glx_dpy, glx_win);
+}
+
 static void lprintFBConfig(Display *dpy, GLXFBConfig fbc, int id)
 {
 	char idbuf[32];
