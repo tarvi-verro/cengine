@@ -76,7 +76,7 @@ static void refb_destruct(struct refb *b)
 	free(b->buf);
 }
 
-static void refb_duplicate(struct refb *dest, struct refb *from)
+/*static void refb_duplicate(struct refb *dest, struct refb *from)
 {
 	assert(from != NULL && dest != NULL && from->buf != NULL);
 	dest->fcns_len = from->fcns_len;
@@ -89,9 +89,9 @@ static void refb_duplicate(struct refb *dest, struct refb *from)
 	dest->buf = malloc(memlen);
 	assert(dest->buf != NULL);
 	memcpy(dest->buf, from->buf, memlen);
-}
+}*/
 
-static void refb_assign(struct refb *dest, struct refb *from)
+/*static void refb_assign(struct refb *dest, struct refb *from)
 {
 	assert(from != NULL && dest != NULL);
 	dest->fcns_len = from->fcns_len;
@@ -99,7 +99,7 @@ static void refb_assign(struct refb *dest, struct refb *from)
 	dest->overflow_len = from->overflow_len;
 	dest->overflow_size = from->overflow_size;
 	dest->buf = from->buf;
-}
+}*/
 
 static void refb_expand(struct refb *b)
 {
@@ -314,7 +314,7 @@ static int refb_fcn_unref(struct refb *b, int fcn_index)
 			lprintf(ERR "Cannot unreference "
 					lF_RED"%.*s"_lF" from 0!!\n",
 					fcns_a[fcn_index].name_len,
-					fcn_name(fcns_a + fcn_index));
+					fcn_inf_name(fcns_a + fcn_index));
 		}
 #endif
 		assert(cc > 0);
