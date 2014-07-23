@@ -114,7 +114,8 @@ static int load()
 		.border_pixel = 0,
 		.colormap = XCreateColormap(glx_dpy, root, vis->visual,
 				AllocNone),
-		.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask,
+		.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask | KeyReleaseMask
+			| ButtonPressMask | ButtonReleaseMask,
 	};
 
 	/* Create window */

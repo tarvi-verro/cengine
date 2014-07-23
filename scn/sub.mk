@@ -1,4 +1,5 @@
 
+SRC += scn/colour.c
 SRC += scn/tri.c
-#LDFLAGS += -lGL
+LDFLAGS += -lm
 
