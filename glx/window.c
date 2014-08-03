@@ -9,12 +9,14 @@
 #include <stdio.h>	/* sscanf */
 #include <X11/Xlib.h>	/* Display */
 #include <GL/glx.h>	/* glXChooseVisual */
+#include <pthread.h>	/* pthread_mutex_lock */
 
 static char *dpy_name = NULL;
 static char *win_name = NULL;
 Display *glx_dpy = NULL;
-static int width = 320;
-static int height = 180;
+pthread_mutex_t win_mutex = PTHREAD_MUTEX_INITIALIZER;
+int win_width = 320;
+int win_height = 180;
 Window glx_win;
 GLXFBConfig glx_fbc;
 
@@ -114,12 +116,19 @@ static int load()
 		.border_pixel = 0,
 		.colormap = XCreateColormap(glx_dpy, root, vis->visual,
 				AllocNone),
-		.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask | KeyReleaseMask
-			| ButtonPressMask | ButtonReleaseMask,
+		.event_mask = StructureNotifyMask | ExposureMask
+			| KeyPressMask | KeyReleaseMask
+			| ButtonPressMask | ButtonReleaseMask
+			| PointerMotionMask,
 	};
 
+	int w, h;
+	pthread_mutex_lock(&win_mutex);
+	w = win_width;
+	h = win_height;
+	pthread_mutex_unlock(&win_mutex);
 	/* Create window */
-	glx_win = XCreateWindow(glx_dpy, root, 0, 0, width, height,
+	glx_win = XCreateWindow(glx_dpy, root, 0, 0, w, h,
 			0, vis->depth, InputOutput, vis->visual,
 			CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
 			&wattr);
@@ -182,11 +191,15 @@ static int optcb(int index, const char *optarg)
 			lprintf(WRN "Unexpected argument for -r.\n");
 			return -1;
 		} else if (r == 1) {
-			width = w;
-			height = (int) (w / 16.f * 9.f);
+			pthread_mutex_lock(&win_mutex);
+			win_width = w;
+			win_height = (int) (w / 16.f * 9.f);
+			pthread_mutex_unlock(&win_mutex);
 		} else if (r == 2) {
-			width = w;
-			height = h;
+			pthread_mutex_lock(&win_mutex);
+			win_width = w;
+			win_height = h;
+			pthread_mutex_unlock(&win_mutex);
 		}
 		break;
 	case 2:

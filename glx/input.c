@@ -1,10 +1,11 @@
 
 /* TODO:
- *	Implement mouse buttons, movements
  *	Window resize
  *	Window exposure
  *	Error handling when xcb_con should fail
  *	Window close [X] event
+ *	Regrab master pointer when focus regained
+ *	Hide the pointer when INPUT_TYPE_MOTION active
  */
 
 /* required for clock_gettime and pthread_timedjoin_np with stdc99*/
@@ -14,6 +15,7 @@
 #include "ce-aux.h"
 #include "ce-log.h"
 #include "ce-mod.h"
+#include "ce-opt.h"
 #include "input.h"
 
 #include <X11/Xlib-xcb.h> /* XGetXCBConnection */
@@ -27,12 +29,13 @@
 #include <string.h>	/* memset */
 #include <errno.h>
 #include <time.h>	/* clock_gettime */
-#include <xcb/xcb_keysyms.h>
+#include <xcb/xcb_keysyms.h> /* (-lxcb-keysyms) */
+#include <xcb/xinput.h>	/* xcb_input_list_input_devices (-lxcb-xinput)*/
 
 extern Display *glx_dpy;
 extern Window glx_win;
 
-static xcb_connection_t *xcb_con;
+static xcb_connection_t *xcb_con = NULL;
 
 static int u32_to_utf8(uint32_t input, char *out, int out_size)
 {
@@ -106,12 +109,14 @@ struct event_triggers {
 
 	struct event_triggers_pt *trigs_a;
 
+	uint8_t motion_trig;
+	bool motion_curs;
 
 	int key_trig_off;
 	uint8_t *key_trig;
 
-	/*int button_trig_off;
-	uint8_t *button_trig;*/
+	/*int button_trig_off; // const 1*/
+	uint8_t *button_trig;
 };
 
 static pthread_mutex_t loop_control;
@@ -120,8 +125,94 @@ static struct event_triggers *loop_control_next = NULL;
 
 static xcb_key_symbols_t *symbol_table = NULL;
 
-static void event_handle(int *looping, xcb_generic_event_t *event, struct event_triggers *tri)
+static void event_handle_raw(xcb_ge_generic_event_t *ge,
+		struct event_triggers *tri)
 {
+	assert(!tri->motion_curs);
+	int i;
+	if (ge->event_type == XCB_INPUT_RAW_BUTTON_PRESS) {
+		xcb_input_raw_button_press_event_t *bp
+			= (xcb_input_raw_button_press_event_t *) ge;
+		struct event_triggers_pt *pt = tri->trigs_a
+			+ tri->button_trig[bp->detail - 1];
+		switch (bp->detail) {
+		case 4: /* mwhl-up */
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_FIRE,
+					0, 0); /* raw event: rel coords */
+			assert(!i);
+			break;
+		case 5: /* mwhl-down */
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_FIRE,
+					0, 0); /* raw event: rel coords */
+			assert(!i);
+			break;
+		default: /* actual buttons */
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_PRESS,
+					0, 0); /* raw event: rel coords */
+			assert(!i);
+		}
+	} else if (ge->event_type == XCB_INPUT_RAW_BUTTON_RELEASE) {
+		xcb_input_raw_button_release_event_t *bp
+			= (xcb_input_raw_button_release_event_t *) ge;
+		switch (bp->detail) {
+		case 4: break; /* mwhl-up */
+		case 5: break; /* mwhl-down*/
+		default:; /* actual buttons */
+			struct event_triggers_pt *pt = tri->trigs_a
+				+ tri->button_trig[bp->detail - 1];
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_RELEASE,
+					0, 0); /* raw event: rel coords */
+			assert(!i);
+		}
+	} else if (ge->event_type == XCB_INPUT_RAW_MOTION) {
+		/* TODO: Doubt valuators_len will ever be any other value,
+		 * verification needed.
+		 * Assumption is made that Rel-X and Rel-Y mouse master
+		 * pointer coordinates are represented by bits 0x1 and 0x2
+		 * respectively.
+		 * Subpixel values are dropped.
+		 */
+		xcb_input_raw_motion_event_t *rp =
+			(xcb_input_raw_motion_event_t *) ge;
+
+		assert(rp->valuators_len == 2);
+		int32_t *a = (int32_t *) (rp + 1);
+		uint32_t v = (*(uint64_t *) a) & 0x3;
+		if (!v) /* must be one of the scroll movements */
+			return;
+		a += 2;
+		int32_t x = 0;
+		int32_t y = 0;
+		if (v & 0x1) {
+			x = *a; /* a[1] - uint32_t subpixel */
+			a += 2;
+		}
+		if (v & 0x2) {
+			y = *a;
+			a += 2;
+		}
+		struct event_triggers_pt *pt = tri->trigs_a
+			+ tri->motion_trig;
+		i = tri->cbs_a[pt->cb_index](pt->input_index,
+				INPUT_EVENT_MOTION, x, y);
+		assert(!i);
+	} else {
+		lprintf(WRN "Unhandled raw event!\n");
+	}
+}
+
+extern pthread_mutex_t win_mutex;
+extern int win_width;
+extern int win_height;
+
+static void event_handle(int *looping, xcb_generic_event_t *event,
+		struct event_triggers *tri)
+{
+	int i;
 	int typ = event->response_type & ~0x80;
 	if (typ == XCB_KEY_RELEASE) {
 		xcb_key_release_event_t *kp =
@@ -138,9 +229,9 @@ static void event_handle(int *looping, xcb_generic_event_t *event, struct event_
 			+ tri->key_trig[kp->detail - tri->key_trig_off];
 		if (pt->modifier) {
 			/* autorepeat enabled */
-			int i = tri->cbs_a[pt->cb_index](pt->input_index,
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
 					INPUT_EVENT_RELEASE,
-					0, 0);
+					kp->event_x, kp->event_y);
 			assert(!i);
 			return;
 		}
@@ -169,9 +260,9 @@ static void event_handle(int *looping, xcb_generic_event_t *event, struct event_
 			}
 		}
 		/* either not a duplicate or Xserver is lagging */
-		int i = tri->cbs_a[pt->cb_index](pt->input_index,
+		i = tri->cbs_a[pt->cb_index](pt->input_index,
 				INPUT_EVENT_RELEASE,
-				0, 0);
+				kp->event_x, kp->event_y);
 		assert(!i);
 		if (qevent != NULL) {
 			event_handle(looping, qevent, tri);
@@ -183,32 +274,156 @@ static void event_handle(int *looping, xcb_generic_event_t *event, struct event_
 			(xcb_key_press_event_t *) event;
 		struct event_triggers_pt *pt = tri->trigs_a
 			+ tri->key_trig[kp->detail - tri->key_trig_off];
-		int i = tri->cbs_a[pt->cb_index](pt->input_index,
+		i = tri->cbs_a[pt->cb_index](pt->input_index,
 				INPUT_EVENT_PRESS,
-				0, 0);
+				kp->event_x, kp->event_y);
 		assert(!i);
 		return;
-	} else if (typ != 102 && typ != 103) {
-		/* 102 is fired everytime buffers are swapped, 103 is exposure? */
-		printf("event type: %i | %x sizeof:%tu\n", typ, 252,
-				sizeof(struct event_triggers));
+	} else if (typ == XCB_BUTTON_PRESS) {
+		if (!tri->motion_curs) /* Raw events enabled, avoid duplicates */
+			return;
+		xcb_button_press_event_t *bp =
+			(xcb_button_press_event_t *) event;
+		struct event_triggers_pt *pt = tri->trigs_a
+			+ tri->button_trig[bp->detail - 1];
+		switch (bp->detail) {
+		case 4: /* mwhl-up */
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_FIRE,
+					bp->event_x, bp->event_y);
+			assert(!i);
+			break;
+		case 5: /* mwhl-down */
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_FIRE,
+					bp->event_x, bp->event_y);
+			assert(!i);
+			break;
+		default: /* actual buttons */
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_PRESS,
+					bp->event_x, bp->event_y);
+			assert(!i);
+		}
+	} else if (typ == XCB_BUTTON_RELEASE) {
+		if (!tri->motion_curs) /* Raw events enabled, avoid duplicates */
+			return;
+		xcb_button_release_event_t *bp =
+			(xcb_button_release_event_t *) event;
+		switch (bp->detail) {
+		case 4: break; /* mwhl-up */
+		case 5: break; /* mwhl-down */
+		default:;
+			struct event_triggers_pt *pt = tri->trigs_a
+				+ tri->button_trig[bp->detail - 1];
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_RELEASE,
+					bp->event_x, bp->event_y);
+			assert(!i);
+		}
+	} else if (typ == XCB_MOTION_NOTIFY) {
+		if (!tri->motion_curs) /* Raw events enabled, avoid duplicates */
+			return;
+		xcb_motion_notify_event_t *np =
+			(xcb_motion_notify_event_t *) event;
+		struct event_triggers_pt *pt = tri->trigs_a
+			+ tri->motion_trig;
+		i = tri->cbs_a[pt->cb_index](pt->input_index,
+				INPUT_EVENT_MOTION,
+				np->event_x, np->event_y);
+		assert(!i);
+	} else if (typ == XCB_GE_GENERIC) {
+		xcb_ge_generic_event_t *ge =
+			(xcb_ge_generic_event_t *) event;
+		event_handle_raw(ge, tri);
+	} else if (typ == XCB_EXPOSE) {
+		xcb_expose_event_t *ex =
+		       (xcb_expose_event_t *) event;
+		lprintf(WRN "TODO: XCB_EXPOSE %ix%i\n", ex->width, ex->height);
+		pthread_mutex_lock(&win_mutex);
+		if (win_width != ex->width || win_height == ex->height) {
+			win_width = ex->width;
+			win_height = ex->height;
+		}
+		pthread_mutex_unlock(&win_mutex);
+	} else if (typ == XCB_MAP_NOTIFY) {
+		lprintf(WRN "TODO: XCB_MAP_NOTIFY\n");
+	} else if (typ == XCB_UNMAP_NOTIFY) {
+		lprintf(WRN "TODO: XCB_UNMAP_NOTIFY\n");
+	} else if (typ == XCB_CONFIGURE_NOTIFY) {
+		xcb_configure_notify_event_t *ce =
+			(xcb_configure_notify_event_t *) event;
+
+		if (win_width == ce->width && win_height == ce->height)
+			return; /* Just moving the window about */
+
+		lprintf(WRN "TODO: XCB_CONFIGURE_NOTIFY %ix%i\n", ce->width,
+				ce->height);
+	} else if (typ == XCB_CHANGE_KEYBOARD_CONTROL) {
+		/* TODO: What is this and why does it trigger when swapping
+		 * buffers? */
+	} else if (typ == XCB_GET_KEYBOARD_CONTROL) {
+		lprintf(WRN "TODO: XCB_GET_KEYBOARD_CONTROL\n");
+	} else if (typ == 0) { /* error event */
+		xcb_generic_error_t *ep =
+			(xcb_generic_error_t *) event;
+		lprintf(ERR "Something went wrong with xcb/X11: "
+				"ec"lF_RED"%3i"_lF"\n", ep->error_code);
+	} else {
+		lprintf(WRN "Unrecognized event type"lF_YELW"%3i"_lF".\n", typ);
 	}
+}
+
+static xcb_input_device_id_t input_master_pointer;
+static void event_input_raw_set(bool toraw)
+{
+	if (!toraw) {
+		xcb_input_xi_ungrab_device(xcb_con,
+				XCB_CURRENT_TIME, input_master_pointer);
+		return;
+	}
+
+	/* Grab the master pointer */
+	xcb_generic_error_t *e = NULL;
+
+	uint32_t mask = XCB_INPUT_XI_EVENT_MASK_RAW_MOTION
+		| XCB_INPUT_XI_EVENT_MASK_RAW_BUTTON_PRESS
+		| XCB_INPUT_XI_EVENT_MASK_RAW_BUTTON_RELEASE;
+
+	xcb_input_xi_grab_device_cookie_t gc
+		= xcb_input_xi_grab_device(xcb_con, glx_win, XCB_CURRENT_TIME,
+				XCB_NONE, input_master_pointer,
+				XCB_GRAB_MODE_ASYNC,
+				XCB_GRAB_MODE_ASYNC,
+				true, 1, &mask);
+	xcb_input_xi_grab_device_reply_t *gr
+		= xcb_input_xi_grab_device_reply(xcb_con, gc, &e);
+	assert(e == NULL);
+	assert(!gr->status);
+	free(gr);
 }
 
 static void *event_loop(void *nothing)
 {
 	assert(nothing == NULL); /* As passed from pthread_create */
 
-	struct event_triggers *tri;
-	int w = pthread_mutex_lock(&loop_control);
-	assert(!w);
-	tri = loop_control_next;
-	pthread_cond_signal(&loop_control_cond);
-	w = pthread_mutex_unlock(&loop_control);
-	assert(!w);
-
+	struct event_triggers *tri = NULL;
 	int looping = 0;
-reloop:
+	int w;
+reload_tri:
+	{
+		bool curs_current = tri == NULL || tri->motion_curs;
+		w = pthread_mutex_lock(&loop_control);
+		assert(!w);
+		tri = loop_control_next;
+		pthread_cond_signal(&loop_control_cond);
+		w = pthread_mutex_unlock(&loop_control);
+		assert(!w);
+		if (tri->motion_curs != curs_current) {
+			event_input_raw_set(!tri->motion_curs);
+		}
+	}
+
 	while (!looping) {
 		xcb_generic_event_t *event = xcb_wait_for_event(xcb_con);
 		if (!event) {
@@ -221,12 +436,8 @@ reloop:
 
 	if (looping == 1) { /* close loop */
 	} else if (looping == 2) { /* reload tri */
-		pthread_mutex_lock(&loop_control);
-		tri = loop_control_next;
-		pthread_cond_signal(&loop_control_cond);
-		pthread_mutex_unlock(&loop_control);
 		looping = 0;
-		goto reloop;
+		goto reload_tri;
 	}
 
 	return NULL;
@@ -358,13 +569,29 @@ static void trig_targets_process(struct event_triggers *ev,
 		const struct input *inp, int ev_trigs_id)
 {
 	if (inp->defkey >= 0) {
+		assert(inp->types & INPUT_TYPE_KEY);
 		xcb_keycode_t *kc = xcb_key_symbols_get_keycode(symbol_table,
 				inp->defkey);
 		ev->key_trig[(*kc) - ev->key_trig_off] = ev_trigs_id;
 		free(kc);
+	} else if (inp->defkey >= INPUT_KEY_MOUSE_OFF) {
+		if (inp->defkey == INPUT_KEY_MOUSE_OFF + 3
+				|| inp->defkey == INPUT_KEY_MOUSE_OFF + 4) {
+			assert(inp->types & INPUT_TYPE_FIRE);
+		} else {
+			assert(inp->types & INPUT_TYPE_KEY);
+		}
+		ev->button_trig[inp->defkey - INPUT_KEY_MOUSE_OFF]
+			= ev_trigs_id;
+	} else if (inp->defkey == INPUT_KEY_MOTION) {
+		assert((inp->types & INPUT_TYPE_MOTION));
+		assert(!ev->motion_trig);
+		ev->motion_curs =
+			(INPUT_TYPE_POINTER & inp->types) == INPUT_TYPE_POINTER;
+		ev->motion_trig = ev_trigs_id;
+	} else {
+		assert(1==2);
 	}
-	/* keycode 22 defaults to 'Y' */
-	//ev->key_trig[16] = ev_trigs_id;
 }
 
 static int dummy_callback(int n, int event, int x, int y)
@@ -383,7 +610,8 @@ void dummy_construct(struct event_triggers **ev, int *ev_length)
 	int ev_length_req = sizeof(struct event_triggers)
 		+ sizeof(int (**)(int, int, int, int)) * 1
 		+ sizeof(struct event_triggers_pt) * trigs_len
-		+ sizeof(uint8_t) * (inf_keycode_max - inf_keycode_min);
+		+ sizeof(uint8_t) * (inf_keycode_max - inf_keycode_min)
+		+ sizeof(uint8_t) * (INPUT_KEY_MOUSE_OFF * -1);
 
 	if ((*ev_length) < ev_length_req) {
 		/* align to 32bytes */
@@ -398,12 +626,17 @@ void dummy_construct(struct event_triggers **ev, int *ev_length)
 		((*ev)->trigs_a + trigs_len);
 
 	(*ev)->key_trig = (uint8_t *) ((*ev)->cbs_a + 1);
-
 	/* 0 will point to dummy trigs_a entry */
 	memset((*ev)->key_trig, 0, inf_keycode_max - inf_keycode_min);
 
+	(*ev)->button_trig = (uint8_t *) ((*ev)->key_trig
+			+ (inf_keycode_max - inf_keycode_min));
+	memset((*ev)->button_trig, 0, INPUT_KEY_MOUSE_OFF * -1);
+
 	/* other */
 	(*ev)->key_trig_off = inf_keycode_min;
+	(*ev)->motion_trig = 0;
+	(*ev)->motion_curs = true;
 
 	/* dummy info */
 	(*ev)->trigs_a[0].cb_index = 0;
@@ -446,7 +679,8 @@ struct inputset *input_set_active(struct inputset *set)
 				/* one dummy 'no-trigger' function */
 				* (set->sections_length + 1)
 			+ sizeof(struct event_triggers_pt) * trigs_len
-			+ (inf_keycode_max - inf_keycode_min) * sizeof(uint8_t);
+			+ sizeof(uint8_t) * (inf_keycode_max - inf_keycode_min)
+			+ sizeof(uint8_t) * (INPUT_KEY_MOUSE_OFF * -1);
 
 		if (ev_length < ev_length_req) {
 			/* align to 32bytes */
@@ -464,8 +698,14 @@ struct inputset *input_set_active(struct inputset *set)
 		/* 0 will point to dummy trigs_a entry */
 		memset(ev->key_trig, 0, inf_keycode_max - inf_keycode_min);
 
+		ev->button_trig = (uint8_t *) (ev->key_trig
+				+ (inf_keycode_max - inf_keycode_min));
+		memset(ev->button_trig, 0, INPUT_KEY_MOUSE_OFF * -1);
+
 		/* other */
 		ev->key_trig_off = inf_keycode_min;
+		ev->motion_trig = 0;
+		ev->motion_curs = 1;
 
 		/* fill in info */
 		int trig_id = 1;
@@ -478,7 +718,8 @@ struct inputset *input_set_active(struct inputset *set)
 				ev->trigs_a[trig_id].cb_index = i;
 				ev->trigs_a[trig_id].input_index = j;
 				ev->trigs_a[trig_id].modifier =
-					!!(t->inputs_a[j].types & INPUT_TYPE_KEY_REPEAT);
+					!!(t->inputs_a[j].types
+							& INPUT_TYPE_KEY_REPEAT);
 				/* finds the configured target key/button/events
 				 * and maps them or default if not found */
 				trig_targets_process(ev, t->inputs_a + j, trig_id);
@@ -551,6 +792,27 @@ int input_set_destroy(struct inputset *set)
 
 static pthread_t loopthread;
 
+static void input_lsdevs();
+#include "input-lsdevs.c"
+
+static bool lsdevs = false;
+static int input_opts_cb(int index, const char *optarg)
+{
+	assert(index == 0);
+	lsdevs = true;
+	return 0;
+}
+
+struct optsection input_opts = {
+	.label = "Input:",
+	.callback = input_opts_cb,
+	.opt_a = {
+		{ ARG_NONE, '\0', "lsdevs", "List available devices on load." },
+		{ ARG_NONE, '\0', NULL, NULL },
+	},
+};
+
+
 static int load()
 {
 	xcb_con = XGetXCBConnection(glx_dpy);
@@ -561,6 +823,31 @@ static int load()
 	inf_keycode_min = s->min_keycode;
 
 	symbol_table = xcb_key_symbols_alloc(xcb_con);
+
+	/* find input_master_pointer */
+	xcb_generic_error_t *e = NULL;
+	bool found_mptr = false;
+	xcb_input_xi_query_device_cookie_t dc
+		= xcb_input_xi_query_device(xcb_con,
+				XCB_INPUT_DEVICE_TYPE_MASTER_POINTER);
+	xcb_input_xi_query_device_reply_t *dr
+		= xcb_input_xi_query_device_reply(xcb_con, dc, &e);
+	assert(e == NULL); /* TODO: handle the error */
+	xcb_input_xi_device_info_iterator_t iter
+		= xcb_input_xi_query_device_infos_iterator(dr);
+	while (iter.rem) {
+		xcb_input_xi_device_info_t *d = iter.data;
+		if (d->type != XCB_INPUT_DEVICE_TYPE_MASTER_POINTER) {
+			xcb_input_xi_device_info_next(&iter);
+			continue;
+		}
+		input_master_pointer = d->deviceid;
+		found_mptr = true;
+		break;
+	}
+	free(dr);
+	assert(found_mptr); /* TODO: handle it */
+
 
 	int w = pthread_mutex_init(&loop_control, NULL);
 	assert(!w);
@@ -580,6 +867,11 @@ static int load()
 	}
 	pthread_cond_wait(&loop_control_cond, &loop_control);
 	pthread_mutex_unlock(&loop_control);
+
+	if (lsdevs) {
+		input_lsdevs();
+		lsdevs = false;
+	}
 	return 0;
 }
 
@@ -600,7 +892,6 @@ static int unload()
 		/*i = pthread_cancel(loopthread);
 		  assert(!i);*/
 	}
-	// assert(res == NULL);
 
 	i = clock_gettime(CLOCK_REALTIME, &timeout);
 	assert(i != -1);
@@ -628,6 +919,9 @@ static int unload()
 	ev_null_length = 0;
 
 	xcb_key_symbols_free(symbol_table);
+
+	/* free'd as XCloseDisplay(glx_dpy) by window.c */
+	xcb_con = NULL;
 	return 0;
 }
 
@@ -644,10 +938,14 @@ static void __init code_load()
 	};
 	glx_input_mod_id = ce_mod_add(&m);
 	assert(glx_input_mod_id >= 0);
+	int rv = opt_add(ce_options, &input_opts);
+	assert(rv >= 0);
 }
 
 static void __exit code_unload()
 {
 	assert(glx_input_mod_id >= 0);
 	ce_mod_rm(glx_input_mod_id);
+	int rv = opt_rm(ce_options, &input_opts);
+	assert(rv >= 0);
 }

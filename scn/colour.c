@@ -48,6 +48,7 @@ static int scn_colour_loop()
 			}
 		}
 		pthread_mutex_unlock(&scn_mutex);
+
 		cnt++;
 		glClearColor( .5f, 0.f,
 				(sinf(cnt/30.f) + 1.f) * .5f
@@ -83,6 +84,35 @@ static int input_cb(int n, int type, int x, int y)
 		pthread_mutex_unlock(&scn_mutex);
 		if (first)
 			lprintf(INF "Bye-bye.\n");
+	} else if (n == 2) {
+		struct timespec ts;
+		clock_gettime(CLOCK_REALTIME, &ts);
+		static struct timespec ts_last = {
+			.tv_sec = 0,
+			.tv_nsec = 0,
+		};
+		if (ts_last.tv_sec < ts.tv_sec || (ts_last.tv_sec == ts.tv_sec
+					&& ts_last.tv_nsec < ts.tv_nsec)) {
+			ts_last.tv_sec = ts.tv_sec;
+			ts_last.tv_nsec = ts.tv_nsec
+				+ 200 * 1000 * 1000; /* 200ms */
+			if (ts_last.tv_nsec >= 1000 * 1000 * 1000) {
+				ts_last.tv_sec += 1;
+				ts_last.tv_nsec -= 1000 * 1000 * 1000;
+			}
+			lprintf(TXT "Mouse movement: %2i %2i\n", x, y);
+		}
+	} else if (n == 3) {
+		assert(type == INPUT_EVENT_FIRE);
+		lprintf(TXT "Mouse wheel up triggered! (pt %2i %2i)\n",
+				x, y);
+	} else if (n == 4) {
+		assert(type == INPUT_EVENT_PRESS
+				|| type == INPUT_EVENT_RELEASE);
+		lprintf(TXT "Mouse left button %s! (pt %2i %2i)\n",
+				type==INPUT_EVENT_PRESS ? "pressed"
+					: "released",
+				x, y);
 	}
 	return 0;
 }
@@ -93,7 +123,13 @@ struct inputsection input_section = {
 	.inputs_a = {
 		{ "colour:Progress the colour.", L'ö',
 			INPUT_TYPE_KEY },
-		{ "bye:Print out some useless information.", 'q',
+		{ "bye:Exit the program.", 'q',
+			INPUT_TYPE_KEY },
+		{ "m-track:Prints some mouse movements.", INPUT_KEY_MOTION,
+			INPUT_TYPE_MOTION },
+		{ "m-up:Prints out mouse-up events.", INPUT_KEY_MOUSE_OFF + 3,
+			INPUT_TYPE_FIRE },
+		{ "m-left:Waits for left mouse button.", INPUT_KEY_MOUSE_OFF + 0,
 			INPUT_TYPE_KEY },
 		{ NULL, '\0', 0 }
 	},

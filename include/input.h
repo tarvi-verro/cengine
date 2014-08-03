@@ -20,10 +20,14 @@ struct inputset;
 /**
  * enum - input keys and triggers
  * @INPUT_KEY_NONE:	no key
+ * @INPUT_KEY_MOUSE_OFF:mouse buttons' offset, where INPUT_KEY_MOUSE_OFF+0 is
+ * 			left mouse button, INPUT_KEY_MOUSE_OFF+1 middle mouse
+ * 			button, _OFF+3 scroll-up, _OFF+4 scroll-down etc
  */
 enum {
 	INPUT_KEY_NONE = 0,
-	INPUT_KEY_MOUSE_LEFT = -1,
+	INPUT_KEY_MOUSE_OFF = -32,
+	INPUT_KEY_MOTION = -51,
 };
 
 /**
@@ -35,17 +39,26 @@ enum {
  *			automatic key repeat event (ignored otherwise)
  * @INPUT_TYPE_FIRE:	trigger on a fire-only event (like mouse scroll), that
  *			has no state (%INPUT_EVENT_FIRE)
- * @INPUT_TYPE_PLANE:	trigger on two dimensional movement events like mouse
- *			movement (%INPUT_EVENT_PLANE)
- *
+ * @INPUT_TYPE_MOTION:	trigger on two dimensional movement events like mouse
+ *			movement (%INPUT_EVENT_MOTION)
+ * @INPUT_TYPE_POINTER:	input of a cursor pointer (%INPUT_EVENT_MOTION);
+ * 			can't be combined with @INPUT_TYPE_MOTION, see below
  * These values are OR-ed together at &struct input's %type field to indicate
  * acceptable event types for trigger.
+ *
+ * Plane and pointer inputs:
+ * Mouse events cannot at the same time provide the grabbed mouse inputs
+ * (@INPUT_TYPE_MOTION) and visual pointer controlled events
+ * (@INPUT_TYPE_POINTER) so a &struct inputset can only listen for one at a
+ * time.
+ *
  */
 enum {
 	INPUT_TYPE_KEY = 1 << 0,
 	INPUT_TYPE_KEY_REPEAT = 1 << 2,
 	INPUT_TYPE_FIRE = 1 << 3,
-	INPUT_TYPE_PLANE = 1 << 4,
+	INPUT_TYPE_MOTION = 1 << 4,
+	INPUT_TYPE_POINTER = (1 << 4) | (1 << 5),
 };
 
 /**
@@ -53,13 +66,13 @@ enum {
  * @INPUT_EVENT_PRESS:	key's state changing to down
  * @INPUT_EVENT_RELEASE:key's state changing to up
  * @INPUT_EVENT_FIRE:	an event of a stateless key fired
- * @INPUT_EVENT_PLANE:	two dimensional controller movement
+ * @INPUT_EVENT_MOTION:	two dimensional controller movement
  */
 enum {
 	INPUT_EVENT_PRESS = 1 << 0,
 	INPUT_EVENT_RELEASE = 1 << 1,
 	INPUT_EVENT_FIRE = 1 << 3,
-	INPUT_EVENT_PLANE = 1 << 4,
+	INPUT_EVENT_MOTION = 1 << 4,
 };
 
 /**
