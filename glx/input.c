@@ -19,6 +19,7 @@
 #include "input.h"
 
 #include <X11/Xlib-xcb.h> /* XGetXCBConnection */
+#include <X11/Xlibint.h> /* XESetWireToEvent */
 #include <pthread.h>	/* pthread_create */
 #include <stdio.h>	/* fprintf */
 #include <stdint.h>	/* uint8_t */
@@ -209,6 +210,31 @@ extern pthread_mutex_t win_mutex;
 extern int win_width;
 extern int win_height;
 
+/**
+ * event_feed_xlib() - feed a given event to the xlib wire listeners
+ * @event:	event to feed them
+ *
+ * This code snippet was found at the following site:
+ * https://bugs.freedesktop.org/show_bug.cgi?id=35945#c4
+ *
+ * TODO: Is it OK to call this wire function from another thread?
+ */
+static void event_feed_xlib(xcb_generic_event_t *event)
+{
+	/* Returns the previous function, sets new one to NULL. We now possess
+	 * the potential function to call. */
+	Bool (*proc)(Display*, XEvent*, xEvent*) =
+		XESetWireToEvent(glx_dpy, event->response_type, 0);
+
+	if (proc) {
+		/* Resets the previous function to handle the events. */
+		XESetWireToEvent(glx_dpy, event->response_type, proc);
+		XEvent dummy;
+		event->sequence = LastKnownRequestProcessed(glx_dpy);
+		proc(glx_dpy, &dummy, (xEvent *) event);
+	}
+}
+
 static void event_handle(int *looping, xcb_generic_event_t *event,
 		struct event_triggers *tri)
 {
@@ -339,31 +365,32 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 	} else if (typ == XCB_EXPOSE) {
 		xcb_expose_event_t *ex =
 		       (xcb_expose_event_t *) event;
-		lprintf(WRN "TODO: XCB_EXPOSE %ix%i\n", ex->width, ex->height);
+		/*lprintf(DBG "XCB_EXPOSE %ix%i\n", ex->width, ex->height);*/
 		pthread_mutex_lock(&win_mutex);
 		if (win_width != ex->width || win_height == ex->height) {
 			win_width = ex->width;
 			win_height = ex->height;
 		}
 		pthread_mutex_unlock(&win_mutex);
+		event_feed_xlib(event);
 	} else if (typ == XCB_MAP_NOTIFY) {
-		lprintf(WRN "TODO: XCB_MAP_NOTIFY\n");
+		event_feed_xlib(event);
 	} else if (typ == XCB_UNMAP_NOTIFY) {
-		lprintf(WRN "TODO: XCB_UNMAP_NOTIFY\n");
+		event_feed_xlib(event);
 	} else if (typ == XCB_CONFIGURE_NOTIFY) {
-		xcb_configure_notify_event_t *ce =
+		/*xcb_configure_notify_event_t *ce =
 			(xcb_configure_notify_event_t *) event;
-
-		if (win_width == ce->width && win_height == ce->height)
-			return; /* Just moving the window about */
-
-		lprintf(WRN "TODO: XCB_CONFIGURE_NOTIFY %ix%i\n", ce->width,
-				ce->height);
+		lprintf(WRN "XCB_CONFIGURE_NOTIFY %ix%i\n", ce->width,
+				ce->height);*/
+		/* An event that receives news of window resize before
+		 * XCB_EXPOSE, but also sometimes multiple times for the same
+		 * dimensions. Also receives window position changes. */
+		event_feed_xlib(event);
 	} else if (typ == XCB_CHANGE_KEYBOARD_CONTROL) {
-		/* TODO: What is this and why does it trigger when swapping
-		 * buffers? */
+		/* An event that is triggered after every buffer swap. */
 	} else if (typ == XCB_GET_KEYBOARD_CONTROL) {
-		lprintf(WRN "TODO: XCB_GET_KEYBOARD_CONTROL\n");
+		/* An event that is triggered every time buffers are swapped. */
+		event_feed_xlib(event);
 	} else if (typ == 0) { /* error event */
 		xcb_generic_error_t *ep =
 			(xcb_generic_error_t *) event;
@@ -371,6 +398,7 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 				"ec"lF_RED"%3i"_lF"\n", ep->error_code);
 	} else {
 		lprintf(WRN "Unrecognized event type"lF_YELW"%3i"_lF".\n", typ);
+		event_feed_xlib(event);
 	}
 }
 

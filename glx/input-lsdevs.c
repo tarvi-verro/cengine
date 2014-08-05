@@ -49,14 +49,14 @@ static void input_lsdevs_class(xcb_input_device_id_t devid,
 			= (xcb_input_valuator_class_t *) c;
 		char *label = input_lsdevs_label(vc->label);
 		lprintf(TXT "\t"lBLD_"%9s"_lBLD
-				" len%3i(%i) srcid%3i nr%3i label\"%s\"\n",
+				" len%3i(%lu) srcid%3i nr%3i label\"%s\"\n",
 				"valuator", c->len, sizeof(vc[0]) >> 2,
 				c->sourceid, vc->number, label);
 		free(label);
 	} else if (c->type == XCB_INPUT_DEVICE_CLASS_TYPE_BUTTON) {
 		xcb_input_button_class_t *bc
 			= (xcb_input_button_class_t *) c;
-		lprintf(TXT "\t"lBLD_"%9s"_lBLD" len%3i(%i) srcid%3i "
+		lprintf(TXT "\t"lBLD_"%9s"_lBLD" len%3i(%lu) srcid%i "
 				"num_btns%3i\n",
 				"button", c->len, sizeof(bc[0]) >> 2,
 				c->sourceid, bc->num_buttons);
