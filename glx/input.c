@@ -518,6 +518,7 @@ static void event_signal_send(int root_x)
 	ev->pad0 = 0;
 	xcb_send_event(xcb_con, 0, glx_win, XCB_EVENT_MASK_KEY_PRESS, (char *) ev);
 	xcb_flush(xcb_con);
+	free(ev);
 #endif
 }
 

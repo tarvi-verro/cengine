@@ -160,10 +160,17 @@ static const int mods_unavail = 127;
 static void mods_expand(int size)
 {
 	if (size <= mods_size) return;
-	mods_size *= 2;
-	if (mods_size < size)
-		mods_size = size;
-	mods_a = realloc(mods_a, sizeof(mods_a[0]) * mods_size);
+	int newsize = mods_size * 2;
+	if (newsize < size)
+		newsize = size;
+	mods_a = realloc(mods_a, sizeof(mods_a[0]) * newsize);
+
+	for (int i = mods_size; i < newsize; i++) {
+		/* initialized only the first time */
+		mods_a[i].iter = 0;
+	}
+
+	mods_size = newsize;
 }
 /**
  * mod_inf_name_get() - get a modules name string
@@ -815,6 +822,10 @@ static int refb_fcn_cnt(struct refb *b, int fcn_index);
 __attribute__((constructor(130))) static void ce_mod_init()
 {
 	mods_a = malloc(sizeof(mods_a[0]) * mods_size);
+	for (int i = 0; i < mods_size; i++) {
+		/* initialized only the first time */
+		mods_a[i].iter = 0;
+	}
 	fcns_a = malloc(sizeof(fcns_a[0]) * fcns_size);
 	xf_htable_construct(fcn_l, 4/*16 buckets*/, sizeof(struct hashentry),
 			xf_hash_hsieh_superfast);
