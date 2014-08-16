@@ -1,4 +1,4 @@
-[submodule "eXtFnc"]
-	path = eXtFnc
-	url = ../eXtFnc/
+[submodule "extfnc"]
+	path = extfnc
+	url = /home/bron/Documents/extfnc.git
 	branch = master

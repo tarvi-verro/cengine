@@ -8,11 +8,11 @@ MKDEP = gcc -MM -MG $(CFLAGS) "$*.c" \
 	| sed -e "s@^\(.*\)\:@$*.d $*.o\:@" > $@
 
 
-#VPATH = eXtFnc:include
+#VPATH = extfnc:include
 
 CC ?= gcc
 # applied via implicit rule
-CFLAGS += -Wall -std=c99 -IeXtFnc -Iinclude # -pthread
+CFLAGS += -Wall -std=c99 -Iextfnc -Iinclude # -pthread
 LDFLAGS := # -pthread -rdynamic -fPIC
 SRC :=
 OBJ :=
