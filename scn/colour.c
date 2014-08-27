@@ -1,3 +1,6 @@
+/*
+ * TODO: give input.h rebindable keys and use those for toggling motion/pointer
+ */
 
 /* required for clock_gettime with stdc99*/
 #define _POSIX_C_SOURCE >= 199309L
@@ -12,6 +15,8 @@
 #include <pthread.h>
 #include <time.h>
 #include <math.h>
+#include <stdlib.h>	/* malloc */
+#include <string.h>	/* memcpy */
 
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
@@ -26,6 +31,34 @@ extern int (*control)();
 static pthread_mutex_t scn_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t scn_cond = PTHREAD_COND_INITIALIZER;
 static int progress = 0;
+
+static int input_cb(int n, int type, int x, int y);
+static struct inputset *input_set = NULL;
+static int inp_sect_ptr;
+static int inp_sect_mot;
+
+static struct inputsection input_section_ptr = {
+	.callback = input_cb,
+	.inputs_a = {
+		{ "colour:Progress the colour.", L'ö',
+			INPUT_TYPE_KEY },
+		{ "bye:Exit the program.", 'q',
+			INPUT_TYPE_KEY },
+		{ "m-track:Prints some mouse movements.", INPUT_KEY_MOTION,
+			INPUT_TYPE_POINTER },
+		{ "m-up:Prints out mouse-up events.", INPUT_KEY_MOUSE_OFF + 3,
+			INPUT_TYPE_FIRE },
+		{ "m-left:Waits for left mouse button.", INPUT_KEY_MOUSE_OFF + 0,
+			INPUT_TYPE_KEY },
+		{ "mousectl-toggle:Toggles between pointer and motion for mouse inputs.", 't',
+			INPUT_TYPE_KEY },
+		{ NULL, '\0', 0 }
+	},
+};
+
+static struct inputsection *input_section_mot;
+
+int input_section_active_mot;
 
 static int scn_colour_loop()
 {
@@ -113,27 +146,21 @@ static int input_cb(int n, int type, int x, int y)
 				type==INPUT_EVENT_PRESS ? "pressed"
 					: "released",
 				x, y);
+	} else if (n == 5) {
+		if (type == INPUT_EVENT_PRESS)
+			return 0;
+		if (input_section_active_mot) {
+			input_rm(input_set, inp_sect_mot);
+			inp_sect_ptr = input_add(input_set, &input_section_ptr);
+		} else {
+			input_rm(input_set, inp_sect_ptr);
+			inp_sect_mot = input_add(input_set, input_section_mot);
+		}
+		input_section_active_mot = !input_section_active_mot;
+		input_set_active(input_set);
 	}
 	return 0;
 }
-
-struct inputset *input_set = NULL;
-struct inputsection input_section = {
-	.callback = input_cb,
-	.inputs_a = {
-		{ "colour:Progress the colour.", L'ö',
-			INPUT_TYPE_KEY },
-		{ "bye:Exit the program.", 'q',
-			INPUT_TYPE_KEY },
-		{ "m-track:Prints some mouse movements.", INPUT_KEY_MOTION,
-			INPUT_TYPE_MOTION },
-		{ "m-up:Prints out mouse-up events.", INPUT_KEY_MOUSE_OFF + 3,
-			INPUT_TYPE_FIRE },
-		{ "m-left:Waits for left mouse button.", INPUT_KEY_MOUSE_OFF + 0,
-			INPUT_TYPE_KEY },
-		{ NULL, '\0', 0 }
-	},
-};
 
 static int load()
 {
@@ -141,9 +168,19 @@ static int load()
 	lprintf(INF lF_WHI lBLD_"scn~colour selected."_lBLD _lF"\n");
 
 	input_set = input_set_create();
-	input_add(input_set, &input_section);
+	inp_sect_ptr = input_add(input_set, &input_section_ptr);
 	input_set_active(input_set);
+	input_section_active_mot = 0;
 
+	/* Create section where mouse input is motion */
+	int i;
+	for (i = 0; input_section_ptr.inputs_a[i].name; i++);
+	i++;
+	input_section_mot = malloc(sizeof(struct inputsection)
+			+ sizeof(struct input) * i);
+	memcpy(input_section_mot, &input_section_ptr, sizeof(struct inputsection)
+			+ sizeof(struct input) * i);
+	input_section_mot->inputs_a[2].types = INPUT_TYPE_MOTION;
 	return 0;
 }
 

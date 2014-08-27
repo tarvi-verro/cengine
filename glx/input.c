@@ -5,7 +5,6 @@
  *	Error handling when xcb_con should fail
  *	Window close [X] event
  *	Regrab master pointer when focus regained
- *	Hide the pointer when INPUT_TYPE_MOTION active
  */
 
 /* required for clock_gettime and pthread_timedjoin_np with stdc99*/
@@ -32,11 +31,13 @@
 #include <time.h>	/* clock_gettime */
 #include <xcb/xcb_keysyms.h> /* (-lxcb-keysyms) */
 #include <xcb/xinput.h>	/* xcb_input_list_input_devices (-lxcb-xinput)*/
+#include <xcb/xcb_image.h>
 
 extern Display *glx_dpy;
 extern Window glx_win;
 
 static xcb_connection_t *xcb_con = NULL;
+static xcb_cursor_t xcb_cursor_transparent;
 
 static int u32_to_utf8(uint32_t input, char *out, int out_size)
 {
@@ -403,13 +404,26 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 }
 
 static xcb_input_device_id_t input_master_pointer;
+/* Switches between mouse pointer raw input (INPUT_TYPE_MOTION) and the
+ * relative pointer input (INPUT_TYPE_POINTER) */
 static void event_input_raw_set(bool toraw)
 {
 	if (!toraw) {
 		xcb_input_xi_ungrab_device(xcb_con,
 				XCB_CURRENT_TIME, input_master_pointer);
+
+		/* Set the default pointer */
+		uint32_t value_list = None;
+		xcb_change_window_attributes(xcb_con, glx_win, XCB_CW_CURSOR,
+				&value_list);
+		xcb_flush(xcb_con);
 		return;
 	}
+
+	/* Set the pointer to be transparent */
+	uint32_t value_list = xcb_cursor_transparent;
+	xcb_change_window_attributes(xcb_con, glx_win, XCB_CW_CURSOR,
+			&value_list);
 
 	/* Grab the master pointer */
 	xcb_generic_error_t *e = NULL;
@@ -429,12 +443,16 @@ static void event_input_raw_set(bool toraw)
 	assert(e == NULL);
 	assert(!gr->status);
 	free(gr);
+	xcb_flush(xcb_con);
 }
+
+static pthread_t event_loop_thread_id;
 
 static void *event_loop(void *nothing)
 {
 	assert(nothing == NULL); /* As passed from pthread_create */
 
+	event_loop_thread_id = pthread_self();
 	struct event_triggers *tri = NULL;
 	int looping = 0;
 	int w;
@@ -523,6 +541,7 @@ static void event_signal_send(int root_x)
 }
 
 struct inputset {
+	pthread_mutex_t mutex;
 	bool dirty;
 	uint8_t sections_length;
 	uint8_t sections_count;
@@ -553,13 +572,14 @@ int input_add(struct inputset *set, const struct inputsection *trig)
 			index = i;
 			set->sections_count++;
 		}
-	} else if (set->sections_length + 1 < set->sections_size) {
+		assert(1==3);
+	} else if (set->sections_length >= set->sections_size) {
 		int n = set->sections_size * 2;
 		if (n >= UINT8_MAX) {
 			lprintf(ERR "Input set's section buffer exhausted.\n");
 			return -1;
 		}
-		set->sections_size *= 2;
+		set->sections_size = n;
 		set->sections_a = realloc(set->sections_a,
 				sizeof(void *) * set->sections_size);
 		assert(set->sections_a != NULL);
@@ -674,13 +694,18 @@ void dummy_construct(struct event_triggers **ev, int *ev_length)
 	(*ev)->cbs_a[0] = dummy_callback;
 }
 
+/* required for accessing ev and ev_length */
+static pthread_mutex_t input_set_active_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 struct inputset *input_set_active(struct inputset *set)
 {
 	struct event_triggers *next;
 
+	pthread_mutex_lock(&input_set_active_mutex);
 	if (set == NULL) {
 		next = ev_null;
 	} else if (!set->dirty && set == active) {
+		pthread_mutex_unlock(&input_set_active_mutex);
 		return set;
 	} else if (set->dirty) {
 		int ev_length;
@@ -777,19 +802,25 @@ struct inputset *input_set_active(struct inputset *set)
 	/* update eventthread */
 	pthread_mutex_lock(&loop_control);
 	loop_control_next = next;
+
 	event_signal_send(2);
-	struct timespec timeout;
-	int i = clock_gettime(CLOCK_REALTIME, &timeout);
-	assert(i != -1);
-	timeout.tv_sec += 2;
-	if (pthread_cond_timedwait(&loop_control_cond, &loop_control, &timeout)) {
-		lprintf(ERR "Input thread jammed: did not respond to event-triggers change!\n");
-		exit(1);
+	if (event_loop_thread_id != pthread_self()) {
+		/* Ensure that the input thread got it */
+		struct timespec timeout;
+		int i = clock_gettime(CLOCK_REALTIME, &timeout);
+		assert(i != -1);
+		timeout.tv_sec += 2;
+		if (pthread_cond_timedwait(&loop_control_cond, &loop_control,
+					&timeout)) {
+			lprintf(ERR "Input thread jammed: did not respond to event-triggers change!\n");
+			exit(1);
+		}
 	}
 	pthread_mutex_unlock(&loop_control);
 
 	struct inputset *active_old = active;
 	active = set;
+	pthread_mutex_unlock(&input_set_active_mutex);
 	return active_old;
 }
 
@@ -877,6 +908,16 @@ static int load()
 	free(dr);
 	assert(found_mptr); /* TODO: handle it */
 
+	/* Initialize transparent pointer (for motion movement) */
+	uint8_t dat[8] = { 0 };
+	xcb_pixmap_t pxmap = xcb_create_pixmap_from_bitmap_data(
+			xcb_con, glx_win, dat, 1, 1, 1,
+			0xffffaa, 0xffffaa, NULL);
+	xcb_cursor_t curs = xcb_generate_id(xcb_con);
+	xcb_create_cursor(xcb_con, curs, pxmap, pxmap,
+			0x0, 0x0, 0x0,
+			0xffff, 0xffff, 0xffff, 1, 1);
+	xcb_cursor_transparent = curs;
 
 	int w = pthread_mutex_init(&loop_control, NULL);
 	assert(!w);
@@ -948,6 +989,9 @@ static int unload()
 	ev_null_length = 0;
 
 	xcb_key_symbols_free(symbol_table);
+
+	/* Free transparent cursor */
+	xcb_free_cursor(xcb_con, xcb_cursor_transparent);
 
 	/* free'd as XCloseDisplay(glx_dpy) by window.c */
 	xcb_con = NULL;

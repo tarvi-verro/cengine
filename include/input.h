@@ -2,6 +2,7 @@
 #define _INPUT_H 0,2,13
 
 /**
+ * TODO: rebindable keys
  * DOC: input.h
  * Functionality for capturing keyboard, gamepad, mouse or other input
  * events.
