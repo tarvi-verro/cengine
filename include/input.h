@@ -2,7 +2,7 @@
 #define _INPUT_H 0,2,13
 
 /**
- * TODO: rebindable keys
+ * TODO: rebindable keys, multiple default keys
  * DOC: input.h
  * Functionality for capturing keyboard, gamepad, mouse or other input
  * events.
@@ -22,13 +22,16 @@ struct inputset;
  * enum - input keys and triggers
  * @INPUT_KEY_NONE:	no key
  * @INPUT_KEY_MOUSE_OFF:mouse buttons' offset, where INPUT_KEY_MOUSE_OFF+0 is
- * 			left mouse button, INPUT_KEY_MOUSE_OFF+1 middle mouse
- * 			button, _OFF+3 scroll-up, _OFF+4 scroll-down etc
+ *			left mouse button, INPUT_KEY_MOUSE_OFF+1 middle mouse
+ *			button, _OFF+3 scroll-up, _OFF+4 scroll-down etc
+ * @INPUT_KEY_CLOSE:	triggered by the window manager (for example after the
+ *			window "X" close button)
  */
 enum {
 	INPUT_KEY_NONE = 0,
 	INPUT_KEY_MOUSE_OFF = -32,
 	INPUT_KEY_MOTION = -51,
+	INPUT_KEY_CLOSE = -61,
 };
 
 /**
@@ -42,8 +45,9 @@ enum {
  *			has no state (%INPUT_EVENT_FIRE)
  * @INPUT_TYPE_MOTION:	trigger on two dimensional movement events like mouse
  *			movement (%INPUT_EVENT_MOTION)
- * @INPUT_TYPE_POINTER:	input of a cursor pointer (%INPUT_EVENT_MOTION);
+ * @INPUT_TYPE_POINTER:	input of a cursor pointer (%INPUT_EVENT_POINTER);
  * 			can't be combined with @INPUT_TYPE_MOTION, see below
+ *
  * These values are OR-ed together at &struct input's %type field to indicate
  * acceptable event types for trigger.
  *
@@ -67,13 +71,17 @@ enum {
  * @INPUT_EVENT_PRESS:	key's state changing to down
  * @INPUT_EVENT_RELEASE:key's state changing to up
  * @INPUT_EVENT_FIRE:	an event of a stateless key fired
- * @INPUT_EVENT_MOTION:	two dimensional controller movement
+ * @INPUT_EVENT_MOTION:	two dimensional controller movement; accompanied by
+ * 			x and y coordinates specifying the amount of movement
+ * @INPUT_EVENT_POINTER:pointer location change; accompanied by x and y
+ *			coordinates relative to the window top-left
  */
 enum {
 	INPUT_EVENT_PRESS = 1 << 0,
 	INPUT_EVENT_RELEASE = 1 << 1,
 	INPUT_EVENT_FIRE = 1 << 3,
 	INPUT_EVENT_MOTION = 1 << 4,
+	INPUT_EVENT_POINTER = (1 << 4) | (1 << 5),
 };
 
 /**

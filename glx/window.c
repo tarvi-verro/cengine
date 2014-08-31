@@ -19,6 +19,7 @@ int win_width = 320;
 int win_height = 180;
 Window glx_win;
 GLXFBConfig glx_fbc;
+static int fbconfigs_show = 0;
 
 void root_win_swapbuffers()
 {
@@ -100,8 +101,10 @@ static int load()
 		goto exitpt;
 	}
 	lprintf(DBG "Found "lF_CYA"%i"_lF" glX framebuffer configs.\n", fbc_cnt);
-	for (int i = 0; i < fbc_cnt; i++) {
-		lprintFBConfig(glx_dpy, fbc[i], i);
+	if (fbconfigs_show) {
+		for (int i = 0; i < fbc_cnt; i++) {
+			lprintFBConfig(glx_dpy, fbc[i], i);
+		}
 	}
 	glx_fbc = *fbc;
 	XFree(fbc);
@@ -116,10 +119,7 @@ static int load()
 		.border_pixel = 0,
 		.colormap = XCreateColormap(glx_dpy, root, vis->visual,
 				AllocNone),
-		.event_mask = StructureNotifyMask | ExposureMask
-			| KeyPressMask | KeyReleaseMask
-			| ButtonPressMask | ButtonReleaseMask
-			| PointerMotionMask,
+		.event_mask = 0,
 	};
 
 	int w, h;
@@ -130,7 +130,7 @@ static int load()
 	/* Create window */
 	glx_win = XCreateWindow(glx_dpy, root, 0, 0, w, h,
 			0, vis->depth, InputOutput, vis->visual,
-			CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
+			CWBackPixel | CWBorderPixel | CWColormap,
 			&wattr);
 	XFree(vis);
 
@@ -143,25 +143,8 @@ static int load()
 exitpt: ;
 
 	if (rv <= -2) {
-		XDestroyWindow(glx_dpy, glx_win);
-	}
-	/*if (rv) {
-		if (rv < -3)
-			glXDestroyContext(glx_dpy, ctx);
-		XDestroyWindow(glx_dpy, glx_win);
 		XCloseDisplay(glx_dpy);
-	}*/
-
-	/* testing
-#include <GL/gl.h>
-#include <unistd.h>
-	for (int i = 0; i < 5; i++) {
-		glClearColor(0.f, 0.f, 1.f / 5.f * i, 1.f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glXSwapBuffers(glx_dpy, glx_win);
-		sleep(1);
 	}
-	*/
 	return rv;
 }
 
@@ -174,7 +157,7 @@ static int unload()
 
 static int optcb(int index, const char *optarg)
 {
-	assert(index >= 0 && index <= 2);
+	assert(index >= 0 && index <= 3);
 	switch (index) {
 	case 0:
 		assert(optarg != NULL);
@@ -212,7 +195,12 @@ static int optcb(int index, const char *optarg)
 			win_name = NULL;
 		}
 		break;
+	case 3:
+		assert(optarg == NULL);
+		fbconfigs_show = 1;
+		break;
 	}
+
 	return 0;
 }
 
@@ -226,6 +214,8 @@ static struct optsection opts = {
 			"Set the resolution of the root window." },
 		{ ARG_OPTIONAL, 't', "title", "NAME\t"
 			"Set the name for root window." },
+		{ ARG_NONE, 'b', "fbconfigs",
+			"Display the available framebuffer selection." },
 		{ 0, '\0', NULL, NULL },
 	},
 };

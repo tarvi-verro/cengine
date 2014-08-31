@@ -742,11 +742,11 @@ static inline void mod_inf_use_print(struct mod_inf *minf)
 	int mname_l;
 	const char *mname;
 	mod_inf_name_get(minf, &mname_l, &mname);
-	lprintf(INF "Mod "lBLD_"%.*s"_lBLD" USE info: (%i)\n",
+	lprintf(DBG "Mod "lBLD_"%.*s"_lBLD" USE info: (%i)\n",
 			mname_l, mname, uinf_l);
 
 	for (int i = 0; i < uinf_l; i++) {
-		lprintf(INF "Required fcn "lBLD_"%.*s %.*s"_lBLD"\n", fcns_a[uinf[i].fcn_index].name_len,
+		lprintf(DBG "Required fcn "lBLD_"%.*s %.*s"_lBLD"\n", fcns_a[uinf[i].fcn_index].name_len,
 				fcn_inf_name(fcns_a + uinf[i].fcn_index),
 				uinf[i].ver_len, uvers + uinf[i].ver_off);
 	}

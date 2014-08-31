@@ -3,8 +3,8 @@
  *	Window resize
  *	Window exposure
  *	Error handling when xcb_con should fail
- *	Window close [X] event
  *	Regrab master pointer when focus regained
+ *	Rebindable keys, keys with multiple default keys
  */
 
 /* required for clock_gettime and pthread_timedjoin_np with stdc99*/
@@ -116,6 +116,8 @@ struct event_triggers {
 
 	int key_trig_off;
 	uint8_t *key_trig;
+
+	uint8_t close_trig;
 
 	/*int button_trig_off; // const 1*/
 	uint8_t *button_trig;
@@ -356,7 +358,7 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 		struct event_triggers_pt *pt = tri->trigs_a
 			+ tri->motion_trig;
 		i = tri->cbs_a[pt->cb_index](pt->input_index,
-				INPUT_EVENT_MOTION,
+				INPUT_EVENT_POINTER,
 				np->event_x, np->event_y);
 		assert(!i);
 	} else if (typ == XCB_GE_GENERIC) {
@@ -392,6 +394,12 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 	} else if (typ == XCB_GET_KEYBOARD_CONTROL) {
 		/* An event that is triggered every time buffers are swapped. */
 		event_feed_xlib(event);
+	} else if (typ == XCB_CLIENT_MESSAGE) {
+		/* Event bound to closing the window. */
+		struct event_triggers_pt *pt = tri->trigs_a
+			+ tri->close_trig;
+		i = tri->cbs_a[pt->cb_index](pt->input_index,
+				INPUT_EVENT_FIRE, 0, 0);
 	} else if (typ == 0) { /* error event */
 		xcb_generic_error_t *ep =
 			(xcb_generic_error_t *) event;
@@ -638,6 +646,10 @@ static void trig_targets_process(struct event_triggers *ev,
 		ev->motion_curs =
 			(INPUT_TYPE_POINTER & inp->types) == INPUT_TYPE_POINTER;
 		ev->motion_trig = ev_trigs_id;
+	} else if (inp->defkey == INPUT_KEY_CLOSE) {
+		assert((inp->types & INPUT_TYPE_FIRE));
+		assert(!ev->close_trig);
+		ev->close_trig = ev_trigs_id;
 	} else {
 		assert(1==2);
 	}
@@ -686,6 +698,7 @@ void dummy_construct(struct event_triggers **ev, int *ev_length)
 	(*ev)->key_trig_off = inf_keycode_min;
 	(*ev)->motion_trig = 0;
 	(*ev)->motion_curs = true;
+	(*ev)->close_trig = 0;
 
 	/* dummy info */
 	(*ev)->trigs_a[0].cb_index = 0;
@@ -759,7 +772,8 @@ struct inputset *input_set_active(struct inputset *set)
 		/* other */
 		ev->key_trig_off = inf_keycode_min;
 		ev->motion_trig = 0;
-		ev->motion_curs = 1;
+		ev->motion_curs = true;
+		ev->close_trig = 0;
 
 		/* fill in info */
 		int trig_id = 1;
@@ -919,6 +933,32 @@ static int load()
 			0xffff, 0xffff, 0xffff, 1, 1);
 	xcb_cursor_transparent = curs;
 
+	/* Set window to catch appropriate events */
+	uint32_t event_mask = XCB_EVENT_MASK_STRUCTURE_NOTIFY
+		| XCB_EVENT_MASK_EXPOSURE
+		| XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE
+		| XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE
+		| XCB_EVENT_MASK_POINTER_MOTION;
+	xcb_change_window_attributes(xcb_con, glx_win, XCB_CW_EVENT_MASK,
+			&event_mask);
+
+	/* Some magic for catching the [X] button window close */
+	xcb_intern_atom_cookie_t protoc_cookie = xcb_intern_atom(xcb_con, 1,
+			12, "WM_PROTOCOLS");
+	xcb_intern_atom_reply_t *protoc_reply = xcb_intern_atom_reply(xcb_con,
+			protoc_cookie, &e);
+	assert(e == NULL); /* TODO: Handle it */
+
+	xcb_intern_atom_cookie_t baked_cookie = xcb_intern_atom(xcb_con, 0, 16,
+			"WM_DELETE_WINDOW");
+	xcb_intern_atom_reply_t *baked_reply = xcb_intern_atom_reply(xcb_con,
+			baked_cookie, &e);
+	assert(e == NULL); /* TODO: Would be nice to handle this */
+
+	xcb_change_property(xcb_con, XCB_PROP_MODE_REPLACE, glx_win,
+			(*protoc_reply).atom, 4, 32, 1, &(*baked_reply).atom);
+
+	/* Initialize the listen thread */
 	int w = pthread_mutex_init(&loop_control, NULL);
 	assert(!w);
 	w = pthread_cond_init(&loop_control_cond, NULL);

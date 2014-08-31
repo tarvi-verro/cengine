@@ -52,6 +52,8 @@ static struct inputsection input_section_ptr = {
 			INPUT_TYPE_KEY },
 		{ "mousectl-toggle:Toggles between pointer and motion for mouse inputs.", 't',
 			INPUT_TYPE_KEY },
+		{ "close:Exit the program.", INPUT_KEY_CLOSE,
+			INPUT_TYPE_FIRE },
 		{ NULL, '\0', 0 }
 	},
 };
@@ -106,7 +108,7 @@ static int input_cb(int n, int type, int x, int y)
 			progress = INPUT_EVENT_PRESS == type ? 1 : 0;
 		pthread_cond_signal(&scn_cond);
 		pthread_mutex_unlock(&scn_mutex);
-	} else if (n == 1) {
+	} else if (n == 1 || n == 6) {
 		int first = 0;
 		pthread_mutex_lock(&scn_mutex);
 		if (progress != -1) {
@@ -133,7 +135,9 @@ static int input_cb(int n, int type, int x, int y)
 				ts_last.tv_sec += 1;
 				ts_last.tv_nsec -= 1000 * 1000 * 1000;
 			}
-			lprintf(TXT "Mouse movement: %2i %2i\n", x, y);
+			lprintf(TXT "Mouse movement (%s): %2i %2i\n",
+					(type == INPUT_EVENT_MOTION) ? "motion"
+						: "pointer", x, y);
 		}
 	} else if (n == 3) {
 		assert(type == INPUT_EVENT_FIRE);
@@ -158,6 +162,8 @@ static int input_cb(int n, int type, int x, int y)
 		}
 		input_section_active_mot = !input_section_active_mot;
 		input_set_active(input_set);
+	} else if (n == 6) {
+		/* Handled above, dead section */
 	}
 	return 0;
 }
