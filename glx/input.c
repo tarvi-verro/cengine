@@ -22,6 +22,7 @@
 #include <pthread.h>	/* pthread_create */
 #include <stdio.h>	/* fprintf */
 #include <stdint.h>	/* uint8_t */
+#include <limits.h>	/* INT_MAX */
 #include <stdlib.h>	/* free */
 #include <unistd.h>	/* sleep */
 #include <stdbool.h>
@@ -886,6 +887,7 @@ struct optsection input_opts = {
 	},
 };
 
+static int unload_var(int rv);
 
 static int load()
 {
@@ -906,7 +908,12 @@ static int load()
 				XCB_INPUT_DEVICE_TYPE_MASTER_POINTER);
 	xcb_input_xi_query_device_reply_t *dr
 		= xcb_input_xi_query_device_reply(xcb_con, dc, &e);
-	assert(e == NULL); /* TODO: handle the error */
+	if (e) {
+		lprintf(ERR "Failed to query for a master pointer: ec%3i\n", e->error_code);
+		free(e);
+		return unload_var(-1);
+	}
+
 	xcb_input_xi_device_info_iterator_t iter
 		= xcb_input_xi_query_device_infos_iterator(dr);
 	while (iter.rem) {
@@ -920,7 +927,10 @@ static int load()
 		break;
 	}
 	free(dr);
-	assert(found_mptr); /* TODO: handle it */
+	if (!found_mptr) {
+		lprintf(ERR "Master pointer device missing.\n");
+		return unload_var(-2);
+	}
 
 	/* Initialize transparent pointer (for motion movement) */
 	uint8_t dat[8] = { 0 };
@@ -947,13 +957,25 @@ static int load()
 			12, "WM_PROTOCOLS");
 	xcb_intern_atom_reply_t *protoc_reply = xcb_intern_atom_reply(xcb_con,
 			protoc_cookie, &e);
-	assert(e == NULL); /* TODO: Handle it */
+	if (e) {
+		lprintf(ERR "Failed to rebind window close event "
+				"('WM_PROTOCOLS' atom error): ec%3i\n",
+				e->error_code);
+		free(e);
+		return unload_var(-3);
+	}
 
 	xcb_intern_atom_cookie_t baked_cookie = xcb_intern_atom(xcb_con, 0, 16,
 			"WM_DELETE_WINDOW");
 	xcb_intern_atom_reply_t *baked_reply = xcb_intern_atom_reply(xcb_con,
 			baked_cookie, &e);
-	assert(e == NULL); /* TODO: Would be nice to handle this */
+	if (e) {
+		lprintf(ERR "Failed to rebind window close event "
+				"('WM_DELETE_WINDOW' atom error): ec%3i\n",
+				e->error_code);
+		free(e);
+		return unload_var(-4);
+	}
 
 	xcb_change_property(xcb_con, XCB_PROP_MODE_REPLACE, glx_win,
 			(*protoc_reply).atom, 4, 32, 1, &(*baked_reply).atom);
@@ -972,8 +994,12 @@ static int load()
 
 	int i = pthread_create(&loopthread, NULL, event_loop, NULL);
 	if (i) {
-		errno = i;
-		perror("pthread_create");
+		pthread_mutex_unlock(&loop_control);
+		char *buf = malloc(100);
+		strerror_r(i, buf, 100);
+		lprintf(ERR "Error creating input event thread: %s\n", buf);
+		free(buf);
+		return unload_var(-5);
 	}
 	pthread_cond_wait(&loop_control_cond, &loop_control);
 	pthread_mutex_unlock(&loop_control);
@@ -985,56 +1011,67 @@ static int load()
 	return 0;
 }
 
-static int unload()
+static int unload_var(int rv)
 {
-	event_signal_send(1);
 	int i;
 	void *res;
-
 	struct timespec timeout;
-	i = clock_gettime(CLOCK_REALTIME, &timeout);
-	assert(i != -1);
-	timeout.tv_sec += 2;
 
-	i = pthread_timedjoin_np(loopthread, &res, &timeout);
-	if (i != 0) {
-		lprintf(ERR "Input thread did not exit in time!\n");
-		/*i = pthread_cancel(loopthread);
-		  assert(!i);*/
+	switch (rv) {
+	case INT_MIN:
+		event_signal_send(1);
+		i = clock_gettime(CLOCK_REALTIME, &timeout);
+		assert(i != -1);
+		timeout.tv_sec += 2;
+
+		i = pthread_timedjoin_np(loopthread, &res, &timeout);
+		if (i != 0) {
+			lprintf(ERR "Input thread did not exit in time!\n");
+			/*i = pthread_cancel(loopthread);
+			  assert(!i);*/
+		}
+
+		free(handleinfo_unused);
+		handleinfo_unused = NULL;
+		handleinfo_unused_length = 0;
+	case -5:
+		i = clock_gettime(CLOCK_REALTIME, &timeout);
+		assert(i != -1);
+		timeout.tv_sec += 2;
+		if (pthread_mutex_timedlock(&loop_control, &timeout)) {
+			lprintf(ERR "Input thread control mutex couldn't be released!\n");
+		} else {
+			pthread_mutex_unlock(&loop_control);
+			pthread_mutex_destroy(&loop_control);
+		}
+		pthread_cond_destroy(&loop_control_cond);
+		free(ev_null);
+		ev_null = NULL;
+		ev_null_length = 0;
+	case -4:
+	case -3:
+		/* Free transparent cursor */
+		xcb_free_cursor(xcb_con, xcb_cursor_transparent);
+	case -2:
+	case -1:
+		XSetEventQueueOwner(glx_dpy, XlibOwnsEventQueue);
+		xcb_key_symbols_free(symbol_table);
+		inf_keycode_min = -1;
+		inf_keycode_max = -1;
+
+		/* free'd as XCloseDisplay(glx_dpy) by window.c */
+		xcb_con = NULL;
+		break;
+	default:;
+		/* By default unload nothing (successful load) */
+		assert(rv >= 0);
 	}
+	return rv;
+}
 
-	i = clock_gettime(CLOCK_REALTIME, &timeout);
-	assert(i != -1);
-	timeout.tv_sec += 2;
-
-	if (pthread_mutex_timedlock(&loop_control, &timeout)) {
-		lprintf(ERR "Input thread control mutex couldn't be released!\n");
-	} else {
-		pthread_mutex_unlock(&loop_control);
-		pthread_mutex_destroy(&loop_control);
-	}
-	pthread_cond_destroy(&loop_control_cond);
-
-	XSetEventQueueOwner(glx_dpy, XlibOwnsEventQueue);
-
-	free(handleinfo_unused);
-	handleinfo_unused = NULL;
-	handleinfo_unused_length = 0;
-
-	inf_keycode_min = -1;
-	inf_keycode_max = -1;
-
-	free(ev_null);
-	ev_null = NULL;
-	ev_null_length = 0;
-
-	xcb_key_symbols_free(symbol_table);
-
-	/* Free transparent cursor */
-	xcb_free_cursor(xcb_con, xcb_cursor_transparent);
-
-	/* free'd as XCloseDisplay(glx_dpy) by window.c */
-	xcb_con = NULL;
+static int unload()
+{
+	unload_var(INT_MIN);
 	return 0;
 }
 
