@@ -76,11 +76,6 @@ int main(int argc, char * const *args)
 	int modid = ce_main_mod_id;
 
 	lputs(INF "cengine-main reached.");
-	log_stderr_threshold(DBG);
-	lputs(INF "Setting default log file './log'.");
-//log_txt_file("./log", 1, 1, 1, 0);
-
-
 
 	opt_parse(ce_options, argc, args, 1);
 

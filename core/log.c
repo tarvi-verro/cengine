@@ -3,7 +3,11 @@
 #include "xf-strb.h"
 #include "ce-aux.h"
 #include "ce-log.h"
+#include "xf-escg.h"
+#include <stdbool.h>
 #include <time.h>
+#define __USE_UNIX98 1
+#include <pthread.h>
 
 /**
  * DOC: log-pipeline
@@ -11,41 +15,56 @@
  * -> log_argcb() -> log_txt_push()
  */
 
-/* raw data */
-static struct xf_strb log_raw = { .a = NULL, };
-static struct xf_strb *rawb = &log_raw; /* convinience */
-
 /* log_raw_push() calls these */
-static void (**raw_callb_a)(const char *str);
+static void (**raw_callb_a)(const char *str, int length);
 static int raw_callb_length = 0;
 static int raw_callb_size = 1;
-void log_raw_listen_add(void (*callb)(const char *str));
-int log_raw_listen_rm(void (*callb)(const char *str));
+void log_raw_listen_add(void (*callb)(const char *str, int length));
+int log_raw_listen_rm(void (*callb)(const char *str, int length));
+
+static pthread_key_t lraw_bufs;
+static void lraw_bufs_cleanup(void *arg);
 
 /* misc */
 static time_t logstart;
 
-/* txt callb's */
-static int txt_callb_length = 0;
-static int txt_callb_size = 3;
-static struct {
-	void *inf;
-	void (*call)(const char *str, int len, int lvl, void* inf);
-} *txt_callb_a;
-void log_txt_pull(const char *in);
-void log_txt_push(const char *out, int len, int lvl, void *unused);
-static void log_txt_out(const char *out, int len, int lvl, void *d);
-static int log_txt_listen_rm(void (*call)(const char *, int, int, void*), void *inf);
-static void log_txt_file_rmall();
-static void log_txt_listen_add(void (*call)(const char *, int, int, void*), void *inf);
+static void logfile_rmall();
+static int logfile_add(FILE *f, int flags);
+static int logfile_rm(int id);
+static void logfile_callback(const char *str, int length);
+
+struct logfile {
+	unsigned int flags;
+	FILE *f;
+	pthread_mutex_t wrlock;
+};
+
+static struct logfile *lfile_a = NULL;
+static int lfile_length = 0;
+static int lfile_size = 3;
+static int lfile_sgr_filter_users = 0;
+static pthread_rwlock_t lfile_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
+/**
+ * A buffer for processing raw log messages before they will be written to
+ * stdout/stderr and specified files.
+ */
+static __thread struct xf_strb *thbuf = NULL;
+/**
+ * A buffer for processing logfile messages before they'll be written to
+ * respective files. Constructed and destructed at the same place as thbuf.
+ */
+static __thread struct xf_strb *lfbuf = NULL;
+
+/*
+ * Standard output select.
+ */
+static int logstd_id = -1;
+static bool logstderr = true;
 
 size_t ce_log_memcnt()
 {
 	size_t cnt = 0;
-	if (rawb->a)
-		cnt += rawb->size;
-	if (txt_callb_a)
-		cnt += txt_callb_size * sizeof(txt_callb_a[0]);
 	if (raw_callb_a)
 		cnt += raw_callb_size * sizeof(raw_callb_a[0]);
 	return cnt;
@@ -55,30 +74,28 @@ __attribute__((constructor(110))) static void log_init()
 {
 	/* raw */
 	raw_callb_a = malloc(sizeof(raw_callb_a[0]) * raw_callb_size);
-	xf_strb_construct(rawb, 128);
-	xf_strb_set(rawb, "\n");
-	//logstart = 0;//time(NULL);
 	logstart = time(NULL);
+	pthread_key_create(&lraw_bufs, lraw_bufs_cleanup);
 	/* txt */
-	txt_callb_a = malloc(sizeof(txt_callb_a[0]) * txt_callb_size);
-	log_raw_listen_add(log_txt_pull);
-	log_txt_listen_add(log_txt_out, NULL);
+	lfile_a = malloc(sizeof(lfile_a[0]) * lfile_size);
+	log_raw_listen_add(logfile_callback);
+	logstd_id = logfile_add(logstderr ? stderr : stdout, 0);
 	lputs(INF "Logging initialized.");
 }
 
 __attribute__((destructor(110))) static void log_exit()
 {
 	lputs(INF "Logging end reached.");
-	/*FILE *f = fopen("logcpy", "w+");
-	fwrite(rawb->a, 1, rawb->length - 1, f);
-	fclose(f);*/
 	/* txt */
-	log_txt_file_rmall();
-	log_txt_listen_rm(log_txt_out, NULL);
-	log_raw_listen_rm(log_txt_pull);
-	free(txt_callb_a);
+	logfile_rmall();
+	log_raw_listen_rm(logfile_callback);
+	pthread_rwlock_wrlock(&lfile_rwlock);
+	free(lfile_a);
+	lfile_length = 0;
+	lfile_a = NULL;
+	pthread_rwlock_unlock(&lfile_rwlock);
 	/* raw */
-	xf_strb_destruct(rawb);
+	pthread_key_delete(lraw_bufs);
 	free(raw_callb_a);
 }
 
@@ -95,7 +112,7 @@ __attribute__((destructor(110))) static void log_exit()
  * Note that the origin part may be overridden to anything that doesn't contain
  * '\0' and ':' characters.
  */
-void log_raw_listen_add(void (*callb)(const char *str))
+void log_raw_listen_add(void (*callb)(const char *str, int length))
 {
 	if (raw_callb_length + 1 > raw_callb_size) {
 		raw_callb_size *= 2;
@@ -105,6 +122,7 @@ void log_raw_listen_add(void (*callb)(const char *str))
 	raw_callb_a[raw_callb_length] = callb;
 	raw_callb_length++;
 }
+
 /**
  * log_raw_listen_rm() - remove a listening callback
  * @callb:	callback to remove
@@ -113,7 +131,7 @@ void log_raw_listen_add(void (*callb)(const char *str))
  *
  *		1 when such callback is not listed
  */
-int log_raw_listen_rm(void (*callb)(const char *str))
+int log_raw_listen_rm(void (*callb)(const char *str, int length))
 {
 	for (int i = 0; i < raw_callb_length; i++) {
 		if (raw_callb_a[i] != callb) continue;
@@ -126,80 +144,109 @@ int log_raw_listen_rm(void (*callb)(const char *str))
 	}
 	return 1;
 }
+
 /**
  * log_raw_push() - passes the new logs to log_raw_readcb fncs
- * @s:		where the new logs start
+ * @s:		the lines to push, the each line beginning in the string must
+ *		start with a header ('time:file+line:lvl:') and the string must
+ *		end with a newline character
+ * @length:	the length of @s to push, ending with a '\n' rather than a
+ *		%NULL char
  */
-static void log_raw_push(int s)
+static void log_raw_push(const char *s, int length)
 {
-	const char *strt = rawb->a + s;
 	for (int i = 0; i < raw_callb_length; i++)
-		raw_callb_a[i](strt);
+		raw_callb_a[i](s, length);
 }
+
 /**
  * log_raw_process() - processes the newly added lines
- * @s:		starting position of newly appended lines
+ * @inp_buf:	line(s) to append to the log, note that the contents of the
+ *		strbuf may change
  *
- * Adds timestamps to the lines and ensures line header consistency.
+ * Adds timestamps to the lines and ensures line header consistency and then
+ * pushes the resulting lines to the log.
  */
-static void log_raw_process(int s)
+static void log_raw_process(struct xf_strb *msg)
 {
-	int ll = rawb->length - 2;
-	char *b = rawb->a;
-	for (int i = rawb->length - 3; i >= s - 1; i--) {
-		int cs;
-		if (b[i] == '\n' && i != rawb->length - 2)
-			cs = i + 1;
-		else
+	int i = 0, line = 0;
+	int e;
+	for (i += 0; i < msg->length - 1; i++) {
+		if (msg->a[i] != '\n')
 			continue;
-
-//fprintf(stdout, "XXXXX\n");
-		int fnd = 0;
-		for (int z = cs; z < ll; z++) {
-			if (b[z] != ':') continue;
-			fnd++;
-			if (fnd == 2) {
-				break; /* found all necessary properties */
-			}
-		}
+		/* Check the line header */
+		for (e = line; e < i && msg->a[e] != ':'; e++); /* file/line */
 		time_t ct = time(NULL) - logstart;
-		if (fnd != 2) {
-			xf_strb_insertf(rawb, cs,
-					"%llu:" DBG "((missing log line properties))\n"
-					"%llu:unknown:3:", (long long unsigned) ct,
-					(long long unsigned) ct); /* inf lvl  */
+		if (msg->a[e] == ':' && msg->a[e + 1] >= '1'
+				&& msg->a[e + 1] <= '5'
+				&& msg->a[e + 2] == ':') {
+			i += xf_strb_insertf(msg, line, "%llx:",
+					(long long unsigned) ct);
 		} else {
-//fprintf(stdout, "YYYYY\n");
-			xf_strb_insertf(rawb, cs, "%llu:", (long long unsigned) ct);
+			i += xf_strb_insertf(msg, line,
+					"%llx:"DBG"((missing log line header))\n"
+					"%llx:unknown+33:2:",
+					(long long unsigned) ct,
+					(long long unsigned) ct);
 		}
-//fprintf(stdout, "ZZZZZ\n");
-
-		ll = i;
+		line = i + 1;
+		assert(msg->a[i] == '\n'); /**/
 	}
-	log_raw_push(s);
+	if (!line)
+		return;
+	log_raw_push(msg->a, line);
+	memmove(msg->a, msg->a + line, msg->length - line);
+	msg->length = msg->length - line;
+}
+
+static void lraw_bufs_cleanup(void *arg)
+{
+	assert(arg == thbuf);
+	struct xf_strb *bufs = arg;
+	xf_strb_destruct(bufs);
+	xf_strb_destruct(bufs + 1);
+	free(bufs);
 }
 
 int lprintf(const char *format, ...)
 {
+	if (!thbuf) {
+		void *val = pthread_getspecific(lraw_bufs);
+		assert(!val);
+		struct xf_strb *bufs = malloc(sizeof(struct xf_strb) * 2);
+		thbuf = bufs;
+		lfbuf = bufs + 1;
+		xf_strb_construct(thbuf, 24);
+		xf_strb_construct(lfbuf, 24);
+		assert(thbuf->a);
+		pthread_setspecific(lraw_bufs, bufs);
+	}
 	va_list l;
 	va_start(l, format);
-	/* "1: err" : len 7, strlen 6, lstindx 5*/
-	/* "1: "    : len 4, strlen 3, lstindx 2 */
-	int s = rawb->length - 1;
-	int r = xf_strb_vappendf(rawb, format, l);
-	//printf("r%i, >>>\n%s\n<<<\n", r, rawb->a + s);
+	int r = xf_strb_vappendf(thbuf, format, l);
 	va_end(l);
-	log_raw_process(s);
 
+	log_raw_process(thbuf);
 	return r;
 }
+
 int lputs(const char *str)
 {
-	int s = rawb->length - 1;
-	int c = xf_strb_append(rawb, str);
-	c += xf_strb_append(rawb, "\n");
+	if (!thbuf) {
+		void *val = pthread_getspecific(lraw_bufs);
+		assert(!val);
+		struct xf_strb *bufs = malloc(sizeof(struct xf_strb) * 2);
+		thbuf = bufs;
+		lfbuf = bufs + 1;
+		xf_strb_construct(thbuf, 24);
+		xf_strb_construct(lfbuf, 24);
+		assert(thbuf->a);
+		pthread_setspecific(lraw_bufs, bufs);
+	}
+	int c = xf_strb_append(thbuf, str);
+	c += xf_strb_append(thbuf, "\n");
 
-	log_raw_process(s);
+	log_raw_process(thbuf);
 
 	return c;
 }
@@ -212,23 +259,18 @@ static int err_thres =
 #else
 '5'; /* debug DBG */
 #endif
-static int out_use = 0;
 
-/**
- * log_txt_conv() - convert raw logs into more readable format
- * @in:		raw log input string to convert
- * @lend:	variable holding whether @in starts with a new line, initialize
- *		it to 1; alternatively, if the string is expected not to expand
- *		you can use NULL to disregard keeping this variable between
- *		calls
- * @llvl:	variable holding current line's level('1'-'5'), if the string
- *		is not expected to expand you can use %NULL to disregard keeping
- *		this variable between calls
- * @out:	function called for writing the converted text
- * @pass:	pass a pointer to @out
- */
-static void log_txt_conv(const char* in, int *lend, int *llvl,
-		void (*out)(const char *str, int len, int lvl, void*), void *pass)
+void log_stderr_threshold(const char *lvlmcro)
+{
+	assert(lvlmcro != NULL);
+	int offs = sizeof(DBG) - 3;
+	lvlmcro += offs;
+	assert(*lvlmcro >= '1' && '5' >= *lvlmcro);
+	err_thres = *lvlmcro;
+
+}
+
+static void logfile_callback(const char *str, int length)
 {
 	static const char chrlvl[5][sizeof(lF_RED "ERR" _lF ": ")] = {
 		lF_RED "ERR" _lF ": ",
@@ -237,261 +279,190 @@ static void log_txt_conv(const char* in, int *lend, int *llvl,
 		lF_WHI "TXT" _lF ": ",
 		lF_CYA "DBG" _lF ": "
 	};
-	int _lend = 1;
-	if (lend == NULL)
-		lend = &_lend;
-	int _llvl = '3';
-	if (llvl == NULL)
-		llvl = &_llvl;
-
-	const char *p = in;
-	const char *w = p;
+	int i, y;
+	unsigned int tstmp;
 	char bufr[81];
-	char hdr[128];
-	for (; *p != '\0'; p++) {
-		if (*p == '\n') {
-			out(w, p - w + 1, *llvl, pass);
-			w = p + 1;
-			*lend = 1;
+	for (i = 0; i < length; i++) {
+		sscanf(str + i, "%x:%80[^:]", &tstmp, bufr);
+		for (i += 0; str[i] != ':'; i++); /* skip time */
+		for (i += 1; str[i] != ':'; i++); /* skip name~line */
+
+		i++; /* jump over the ':' onto lvl */
+		y = i;
+
+		for (i++; str[i] != '\n' && i < length; i++);
+
+		xf_strb_appendf(lfbuf, "[%3u] "lF_WHI"%16s"_lF" %s%.*s",
+				tstmp, bufr, chrlvl[str[y]-'1'],
+				(i + 1) - (y + 2), str + y + 2);
+	}
+
+	pthread_rwlock_rdlock(&lfile_rwlock);
+	for (i = 0; i < lfile_length; i++) {
+		struct logfile *lf = lfile_a + i;
+		if (!lf->f || (lf->flags & LOGFILE_FILTER_SGR))
 			continue;
-		}
-		if (!*lend)
+		pthread_mutex_lock(&lf->wrlock);
+		fwrite(lfbuf->a, 1, lfbuf->length - 1, lf->f);
+		pthread_mutex_unlock(&lf->wrlock);
+	}
+	y = lfile_sgr_filter_users;
+	pthread_rwlock_unlock(&lfile_rwlock);
+
+	if (!y) {
+		xf_strb_clear(lfbuf);
+		return;
+	}
+
+	for (i = 0; i < length; i++) {
+		if (str[i] != '\x1b' || str[i + 1] != '[')
 			continue;
-
-		unsigned int tstmp;
-
-		sscanf(p, "%x:%80[^:]", &tstmp, bufr);
-		for (; *p != ':'; p++); // Skip time
-		for (p++; *p != ':'; p++); // Skip origin
-		p++;
-		w = p;
-		*lend = 0;
-		const char *prep;
-	//	out(w, p - w, *llvl, pass);
-
-		prep = chrlvl[*p - '1'];
-		*llvl = *p;
-
-		int hdl = snprintf(hdr, sizeof(hdr), "[%3u] "
-					lF_WHI "%16s" _lF " ", tstmp, bufr);
-
-		out(hdr, hdl, *llvl, pass);
-		out(prep, sizeof(chrlvl[0]), *llvl, pass);
-		w = p + 2;
-		p++;
+		y = i;
+		for (i += 2; str[i] != 'm'; i++);
+		xf_strb_delete(lfbuf, y, i - y);
 	}
-	out(w, p - w, *llvl, pass);
-}
-void log_stderr_threshold(const char *lvlmcro)
-{
 
-	assert(lvlmcro != NULL);
-	int offs = sizeof(DBG) - 3;
-	/*lprintf(DBG "offs %i\n", offs);*/
-	lvlmcro += offs;
-	assert(*lvlmcro >= '1' && '5' >= *lvlmcro);
-	err_thres = *lvlmcro;
-
-}
-void log_debug(int enable)
-{
-}
-
-
-static void log_txt_listen_add(void (*call)(const char *s, int l, int lvl, void* inf),
-		void *inf)
-{
-	if (txt_callb_length + 1 > txt_callb_size) {
-		txt_callb_size *= 2;
-		txt_callb_a = realloc(txt_callb_a, sizeof(txt_callb_a[0])
-				* txt_callb_size);
+	pthread_rwlock_rdlock(&lfile_rwlock);
+	for (i = 0; i < lfile_length; i++) {
+		struct logfile *lf = lfile_a + i;
+		if (!lf->f || !(lf->flags & LOGFILE_FILTER_SGR))
+			continue;
+		pthread_mutex_lock(&lf->wrlock);
+		fwrite(lfbuf->a, 1, lfbuf->length - 1, lf->f);
+		pthread_mutex_unlock(&lf->wrlock);
 	}
-	txt_callb_a[txt_callb_length].call = call;
-	txt_callb_a[txt_callb_length].inf = inf;
-	txt_callb_length++;
+	pthread_rwlock_unlock(&lfile_rwlock);
 }
-static int log_txt_listen_rm(void (*call)(const char *, int, int, void*), void *inf)
+
+/**
+ * logfile_add() - add a file to log to
+ * @f:		an open file handle to log to
+ * @flags:	LOGFILE_* flags joined by bitwise OR("|")
+ *
+ * Return:	Negative on error, an id that can be used for logfile_rm()
+ *		otherwise.
+ */
+static int logfile_add(FILE *f, int flags)
 {
-	for (int i = 0; i < txt_callb_length; i++) {
-		if (txt_callb_a[i].call != call || txt_callb_a[i].inf != inf) continue;
-		memmove(txt_callb_a + i, txt_callb_a + i + 1,
-				sizeof(txt_callb_a[0])
-				* (txt_callb_length - i - 1));
-		txt_callb_length--;
-		return 0;
+	assert(f);
+	assert(!(~((~flags) | LOGFILE_FILTER_SGR | LOGFILE_AUTOCLOSE)));
+
+	pthread_rwlock_wrlock(&lfile_rwlock);
+	int i;
+	for (i = 0; i < lfile_length; i++) {
+		if (!lfile_a[i].f)
+			break;
 	}
-	return 1;
-}
-void log_txt_push(const char *out, int len, int lvl, void *unused)
-{
-	for (int i = 0; i < txt_callb_length; i++)
-		txt_callb_a[i].call(out, len, lvl, txt_callb_a[i].inf);
-}
-void log_txt_pull(const char *in)
-{
-	static int lend = 1;
-	static int llvl = '3';
-	log_txt_conv(in, &lend, &llvl, log_txt_push, NULL);
-}
-static void log_txt_out(const char *out, int len, int lvl, void *d)
-{
-	if (lvl > err_thres) return;
-	fwrite(out, 1, len, stderr);
-}
-struct logfile {
-	int id;
-	int filter_sgr;
-	FILE *f;
-};
-static void log_txt_file_out(const char *out, int len, int lvl, void *pass)
-{
-	struct logfile *f = (struct logfile *) pass;
-	if (!f->filter_sgr) {
-		fwrite(out, 1, len, f->f);
-	} else {
-		int s = 0;
-		int i;
-		for (i = 0; i < len; i++) {
-			if (out[i] != 0x1b) continue;
-			fwrite(out + s, 1, i - s, f->f);
-			for (i++; i < len && out[i] != 'm'; i++);
-			s = i + 1;
+	if (i == lfile_length) {
+		if (lfile_length >= lfile_size) {
+			lfile_size *= 2;
+			lfile_a = realloc(lfile_a,
+					lfile_size * sizeof(lfile_a[0]));
+			assert(lfile_a);
 		}
-		if (s < len)
-			fwrite(out + s, 1, i - s, f->f);
+		lfile_length++;
 	}
-}
-
-int log_txt_file(const char *file, int clear, int copy, int follow, int filter_sgr)
-{
-	static int idcounter = 1;
-	FILE *f;
-
-	if (clear)
-		f = fopen(file, "w");
-	else
-		f = fopen(file, "a");
-
-	if (f == NULL) {
-		lprintf(WRN "Could not open file '%s' for appending.\n",
-				file);
-		return -1;
-	}
-
-	if (copy) {
-		struct logfile tmpf = { .id = 0, .f = f, .filter_sgr = filter_sgr };
-		lprintf(INF "Writing current log to '%s'.\n", file);
-		log_txt_conv(rawb->a, NULL, NULL, log_txt_file_out, &tmpf);
-	}
-	if (!follow) {
-		fclose(f);
-		return 0;
-	}
-	struct logfile *lf = malloc(sizeof(struct logfile));
-	lf->id = idcounter++;
+	struct logfile *lf = lfile_a + i;
+	lf->flags = flags;
 	lf->f = f;
-	lf->filter_sgr = filter_sgr;
-	log_txt_listen_add(log_txt_file_out, lf);
-	lprintf(INF "Now following '%s' for logging, hndl %i.\n", file, lf->id);
+	pthread_mutex_init(&lf->wrlock, NULL);
 
-	return lf->id;
+	if ((flags & LOGFILE_FILTER_SGR))
+		lfile_sgr_filter_users++;
+	pthread_rwlock_unlock(&lfile_rwlock);
+	return i;
 }
+
+/**
+ * logfile_rm() - Remove a logfile
+ * @id:		id of the logfile to remove
+ *
+ * Return:	Negative on error.
+ */
+static int logfile_rm(int id)
+{
+	pthread_rwlock_wrlock(&lfile_rwlock);
+	if (id < 0 || id >= lfile_length)
+		return -1;
+	assert(id >= 0 && id < lfile_length);
+	struct logfile *lf = lfile_a + id;
+	pthread_mutex_lock(&lf->wrlock);
+
+	if ((lf->flags & LOGFILE_AUTOCLOSE))
+		fclose(lf->f);
+
+	if ((lf->flags & LOGFILE_FILTER_SGR))
+		lfile_sgr_filter_users--;
+
+	lf->f = NULL;
+	pthread_mutex_unlock(&lf->wrlock);
+	pthread_mutex_destroy(&lf->wrlock);
+	if (id == lfile_length - 1)
+		lfile_length--;
+
+	pthread_rwlock_unlock(&lfile_rwlock);
+	return id;
+}
+
+/**
+ * logfile_rmall() - remove all logfiles
+ */
+static void logfile_rmall()
+{
+	pthread_rwlock_wrlock(&lfile_rwlock);
+	for (int i = 0; i < lfile_length; i++) {
+		struct logfile *lf = lfile_a + i;
+		pthread_mutex_lock(&lf->wrlock);
+		if ((lf->flags & LOGFILE_AUTOCLOSE)) {
+			fclose(lf->f);
+		}
+		if ((lf->flags & LOGFILE_FILTER_SGR))
+			lfile_sgr_filter_users--;
+		lf->f = NULL;
+		pthread_mutex_unlock(&lf->wrlock);
+		pthread_mutex_destroy(&lf->wrlock);
+	}
+	lfile_length = 0;
+	pthread_rwlock_unlock(&lfile_rwlock);
+}
+
+int log_txt_file_add(FILE *f, int flags)
+{
+	return logfile_add(f, flags);
+}
+
 int log_txt_file_rm(int hndl)
 {
-	for (int i = 0; i < txt_callb_length; i++) {
-		if (txt_callb_a[i].call != log_txt_file_out
-				|| ((struct logfile *)txt_callb_a[i].inf)->id != hndl)
-			continue;
-		lprintf(INF "Closing log file with handle %i.\n",
-				((struct logfile *)txt_callb_a[i].inf)->id);
-		fclose(((struct logfile *)txt_callb_a[i].inf)->f);
-		free(txt_callb_a[i].inf);
-		log_txt_listen_rm(log_txt_file_out, txt_callb_a[i].inf);
-		return 0;
-	}
-	return 1;
+	return logfile_rm(hndl);
 }
-static void log_txt_file_rmall()
-{
-	for (int i = txt_callb_length - 1; i >= 0; i--) {
-		if (txt_callb_a[i].call != log_txt_file_out)
-			continue;
-		lprintf(INF "Closing log file with handle %i.\n",
-				((struct logfile *)txt_callb_a[i].inf)->id);
-		fclose(((struct logfile *)txt_callb_a[i].inf)->f);
-		free(txt_callb_a[i].inf);
-		log_txt_listen_rm(log_txt_file_out, txt_callb_a[i].inf);
-	}
-}
+
 
 /* options */
 #include "ce-opt.h"
-static inline int log_optcb_stderr_thres(const char *arg)
-{ /* --log-stderr-thres LOGLVL */
-	/* (size >= 19 && !memcmp(arg, "--log-stderr-thres", 18)) */
-	assert(arg != NULL); /* not optional */
 
-	if (strlen(arg) != 3) {
-		lprintf(WRN "Invalid LOGLVL: '"lBLD_"%s"_lBLD"'\n", arg);
-		return -1;
-	}
-	else if (!memcmp(arg,"DBG",3)) log_stderr_threshold(DBG);
-	else if (!memcmp(arg,"TXT",3)) log_stderr_threshold(TXT);
-	else if (!memcmp(arg,"INF",3)) log_stderr_threshold(INF);
-	else if (!memcmp(arg,"WRN",3)) log_stderr_threshold(WRN);
-	else if (!memcmp(arg,"ERR",3)) log_stderr_threshold(ERR);
-	else {
-		lprintf(WRN "Invalid LOGLVL: '"lBLD_"%s"_lBLD"'\n", arg);
-		return -1;
-	}
-	lprintf(INF "Log stderr level is now "lBLD_"%s"_lBLD".\n", arg);
-	return 0;
-}
 static inline int log_optcb_stdout(const char *arg)
 { /* -o, --log-stdout [true/f] */
-	/* (size >= 13 && !memcmp(arg, "--log-stdout", 12))  */
 	int b = optarg_bool(arg);
 	if (b == -1) {
 		lprintf(WRN "Invalid boolean parameter '"lBLD_"%s"_lBLD"'\n", arg);
 		return -1;
-	}
-	if (b < 0) {
-		out_use = 1;
+	} else if (b == -2) { /* empty/NULL */
+		if (!logstderr)
+			return 0;
+		logstderr = false;
+		logfile_rm(logstd_id);
+		logstd_id = logfile_add(stdout, 0);
 		lputs(INF "Logging to stdout enabled.");
 		return 0;
 	}
-	out_use = b;
-	lprintf(INF "Logging to stdout "lF_BLUE"%s"_lF".\n",
-			out_use ? "enabled" : "disabled");
-	return 0;
-}
-static inline int log_optcb_file(const char *arg)
-{ /* --log-file=[wfce,]FILE */
-	assert(arg != NULL); /* not optional */
-	int follow = 0;
-	int write = 0;
-	int clear = 0;
-	int no_sgt = 0;
-	int i;
-	int c;
-	for (c = 0; arg[c] != '\0' && arg[c] != ','; c++);
-	if (arg[c] != ',') {
-		return -1;
-	} else if (arg[c + 1] == '\0') {
-		lprintf(WRN "No FILE specified.\n");
-		return -1;
-	}
-
-	for (i = 0; i < c; i++) {
-		if (arg[i] == 'w')	write = 1;
-		else if (arg[i] == 'f') follow = 1;
-		else if (arg[i] == 'c') clear  = 1;
-		else if (arg[i] == 'e') no_sgt = 1;
-		lprintf(WRN "Invalid flag '%c'. Valid flags are 'wfce'.\n", arg[i]);
-		return -1;
-	}
-
-	log_txt_file(arg + c + 1, clear, write, follow, no_sgt);
+	if (!b == logstderr)
+		lprintf(WRN "Logging output already set to "lF_YELW"%s"_lF".\n",
+				logstderr ? "stderr" : "stdout");
+	logstderr = !b;
+	logfile_rm(logstd_id);
+	logstd_id = logfile_add(logstderr ? stderr : stdout, 0);
+	lprintf(INF "Logging to "lF_BLUE"%s"_lF".\n",
+			logstderr ? "stderr" : "stdout");
 	return 0;
 }
 
@@ -499,35 +470,30 @@ static int log_optcb(int index, const char *optarg)
 {
 	switch (index) {
 		case 0: return log_optcb_stdout(optarg);
-		case 1: return log_optcb_stderr_thres(optarg);
-		case 2: return log_optcb_file(optarg);
 	};
 	assert(1 == 3); /* this should not be reached */
 }
+
 static struct optsection log_optsection = {
 	.label = "Logging:",
 	.callback = log_optcb,
 	.opt_a = {
-		{ ARG_OPTIONAL, 'o', "log-stdout", "t/false\t"
-			"Use the stdout stream for logs below stderr threshold." },
-		{ ARG_REQUIRED, '\0', "log-stderr-thres", "LOGLVL\t"
-			"Set the threshold at which messages are printed to "
-			"stderr. Where LOGLVL must be one of: DBG, TXT, INF, WRN, ERR." },
-		{ ARG_REQUIRED, '\0', "log-file", "wfce,FILE\t"
-			"Open log FILE and clear(c) it, paste history(w), "
-			"follow(f) and filter escape sequences(e)." },
+		{ ARG_OPTIONAL, 'o', "log-stdout", "f/true\t"
+			"Log to stdout instead of stderr." },
 		{ 0, '\0', NULL, NULL },
 	},
 };
-int log_opt_added = 0;
+
+/* Initialized separately later to allow opt's constructors to be called. */
+static int log_opt_added = 0;
 static void __init log_init_argcb()
 {
 	log_opt_added = opt_add(ce_options, &log_optsection) >= 0;
-	/*lputs(DBG "Logging arguments hooked.");*/
 }
+
 static void __exit log_exit_argcb()
 {
 	if (log_opt_added)
 		opt_rm(ce_options, &log_optsection);
-	/*lputs(DBG "Logging arguments removed.");*/
 }
+

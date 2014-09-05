@@ -658,7 +658,7 @@ static void trig_targets_process(struct event_triggers *ev,
 
 static int dummy_callback(int n, int event, int x, int y)
 {
-	printf("Unbound key\n");
+	lprintf(DBG "Unbound key.\n");
 	return 0;
 }
 

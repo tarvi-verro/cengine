@@ -1,5 +1,5 @@
 #ifndef _CE_AUX_LOG_H
-#define _CE_AUX_LOG_H 0,02,06
+#define _CE_AUX_LOG_H 0,2,13
 
 /**
  * DOC: Log with graphics
@@ -8,46 +8,35 @@
  * support is guaranteed.
  */
 #include "xf-escg.h"
+#include <stdio.h>
+
+/**
+ * enum log_file_flags - flags to use with log_file_add()
+ * @LOGFILE_FILTER_SGR:	filters the escape sequences
+ * @LOGFILE_AUTOCLOSE:	automatically close the file on log_file_rm()
+ */
+enum log_file_flags {
+	LOGFILE_FILTER_SGR = 1 << 0,
+	LOGFILE_AUTOCLOSE = 1 << 1,
+};
 
 /* ce-log.c */
-/**
- * log_stderr_threshold() - set level at which log goes to stderr
- * @lvlmcro:	level macro, one of %DBG, %TXT, %INF, %WRN, %ERR
- *
- * @lvlmacro and all lower levels(%ERR(1) < %INF(3)) will be written to %stderr.
- *
- * This defaults to %WRN.
- */
-void log_stderr_threshold(const char *lvlmcro);
-
-/**
- * log_debug() - enable or disable DBG logs
- * @enable:	%true if messages prepended with %DBG will be logged, %false to
- *		have them be ignored
- */
-void log_debug(int enable);
 
 /**
  * log_txt_file() - open a file for logs
- * @file:	system path to open
- * @clear:	whether or not to clear the file prior to use
- * @copy:	should log history(since the execution) be copied over
- * @follow:	keep the file open and append log as they are printed?
- * @filter_esc:	should ansi escape codes like Set Graphics Rendering be
- *		filtered before writing logs to file
+ * @f:		an open file handle to start writing the logs to
+ * @flags:	bitwise flags to modify how the file is handled and written to,
+ * 		see &enum log_file_flags
  *
- * Return:	negative on failure, positive integer handle on success or
- *		0 when follow was false.
+ * Return:	negative on failure, positive integer handle on success
  */
-int log_txt_file(const char *file, int clear, int copy, int follow, int filter_esc);
+int log_txt_file_add(FILE *f, int flags);
 
 /**
  * log_txt_file_rm() - close a file following logs
  * @hndl:	handle returned by log_txt_file() with follow
  *
- * Return:	0 on success.
- *
- *		1 if such handle is already closed or was never obtained
+ * Return:	negative on failure, the handle id on success
  */
 int log_txt_file_rm(int hndl);
 
