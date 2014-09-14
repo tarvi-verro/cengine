@@ -4,6 +4,8 @@
 #include "ce-mod.h"	/* ce_mod_add */
 #include <unistd.h>	/* sleep */
 #include <assert.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 #define GL_GLEXT_PROTOTYPES 1
 #include <GL/gl.h>
@@ -11,12 +13,17 @@
 
 void root_win_swapbuffers();
 
-int scn_loop()
+static GLuint prg;
+
+static int scn_loop()
 {
 	lprintf(INF "Reached the loop woo!\n");
 
 	glClearColor(1.f, 0.f, 1.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	glUseProgram(prg);
+
 	GLuint VertexArrayID;
 	glGenVertexArrays(1, &VertexArrayID);
 	glBindVertexArray(VertexArrayID);
@@ -68,6 +75,67 @@ static int load()
 {
 	control = scn_loop;
 	lprintf(INF ""lF_WHI lBLD_"scn~tri selected."_lBLD _lF"\n");
+
+	/* Shader creation */
+	const char *vertex_shader_src =
+		"#version 330\n"
+		"layout(location = 0) in vec4 position;\n"
+		"void main()\n"
+		"{\n"
+		"	gl_Position = position;\n"
+		"}\n";
+	const char *fragment_shader_src =
+		"#version 330\n"
+		"out vec4 outputColor;\n"
+		"void main()\n"
+		"{\n"
+		"	outputColor = vec4(1.0f, 1.0f, 1.0f, 1.0f);\n"
+		"}\n";
+	GLint s, i;
+	GLchar *a;
+
+	GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertex_shader, 1, &vertex_shader_src, NULL);
+	glCompileShader(vertex_shader);
+	glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &s);
+	if (s == false) {
+		glGetShaderiv(vertex_shader, GL_INFO_LOG_LENGTH, &i);
+		a = malloc(sizeof(*a) * (i + 1));
+		glGetShaderInfoLog(vertex_shader, i, NULL, a);
+		lprintf(ERR "Failed compiling vertex shader: %s\n", a);
+		free(a);
+		return -1;
+	}
+
+	GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragment_shader, 1, &fragment_shader_src, NULL);
+	glCompileShader(fragment_shader);
+	glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &s);
+	if (s == false) {
+		glGetShaderiv(fragment_shader, GL_INFO_LOG_LENGTH, &i);
+		a = malloc(sizeof(*a) * (i + 1));
+		glGetShaderInfoLog(fragment_shader, i, NULL, a);
+		lprintf(ERR "Failed compiling fragment shader: %s\n", a);
+		free(a);
+		return -2;
+	}
+
+	/* Program creation */
+	prg = glCreateProgram();
+	glAttachShader(prg, vertex_shader);
+	glAttachShader(prg, fragment_shader);
+	glLinkProgram(prg);
+	glGetProgramiv(prg, GL_LINK_STATUS, &s);
+	if (s == false) {
+		glGetProgramiv(prg, GL_INFO_LOG_LENGTH, &i);
+		a = malloc(sizeof(*a) * (i + 1));
+		glGetProgramInfoLog(prg, i, NULL, a);
+		lprintf(ERR "Failed linking program.\n");
+		free(a);
+		return -3;
+	}
+	glDetachShader(prg, vertex_shader);
+	glDetachShader(prg, fragment_shader);
 	return 0;
 }
 
