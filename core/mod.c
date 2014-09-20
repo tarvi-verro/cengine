@@ -10,6 +10,7 @@
 	previous * 2
 #include <stdint.h> /* uint8_t */
 #include <ctype.h> /* isspace */
+#include <stdbool.h>
 #define NAMEINF_UNSPECIF UINT8_MAX
 
 /**
@@ -582,10 +583,6 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		f->defined = 0;
 		f->parent = parent != -1 ? parent : 0;
 		f->child_cnt = 0;
-		lprintf(DBG "FCN '"lF_CYA"%.*s%s"_lF
-				"'(id"lF_CYA"%i"_lF") added.\n", b.length - 1, fcn_n,
-				!f->variable ? "" : (f->variable == 1 ? "$" : "[]"),
-				e->index);
 
 		e = xf_htable_see(fcn_l, b.a, b.length - 1, &def);
 	} else {
@@ -742,14 +739,22 @@ static inline void mod_inf_use_print(struct mod_inf *minf)
 	int mname_l;
 	const char *mname;
 	mod_inf_name_get(minf, &mname_l, &mname);
-	lprintf(DBG "Mod "lBLD_"%.*s"_lBLD" USE info: (%i)\n",
-			mname_l, mname, uinf_l);
+	if (!uinf_l) {
+		lprintf(DBG "Mod %.*s requires no functionality.\n",
+			mname_l, mname);
+		return;
+	}
+	lprintf(DBG "Mod %.*s requires ", mname_l, mname);
 
 	for (int i = 0; i < uinf_l; i++) {
-		lprintf(DBG "Required fcn "lBLD_"%.*s %.*s"_lBLD"\n", fcns_a[uinf[i].fcn_index].name_len,
+		lprintf(""lF_YELW"%.*s%s%.*s"_lF"%s",
+				fcns_a[uinf[i].fcn_index].name_len,
 				fcn_inf_name(fcns_a + uinf[i].fcn_index),
-				uinf[i].ver_len, uvers + uinf[i].ver_off);
+				uinf[i].ver_len ? " " : "",
+				uinf[i].ver_len, uvers + uinf[i].ver_off,
+				i + 1 < uinf_l ? ", " : "");
 	}
+	lputs(".");
 }
 
 /**
@@ -1183,6 +1188,67 @@ static int mod_unload(struct refb *refs, int mod_index)
 }
 
 /**
+ * ver_mthan() - Answers the question is a more than b
+ * @a_len:	length of @a
+ * @a:		the first version string component
+ * @b_len:	length of @b
+ * @b:		the second version string component
+ *
+ * Return:	If a > b, returns 1; if a == b returns 0 and if a < b returns
+ *		(-1).
+ */
+static int ver_mthan(int a_len, const char *a, int b_len, const char *b)
+{
+	int a_i = 0, b_i = 0;
+	while (1) {
+		if (a_i >= a_len && b_i >= b_len)
+			return 0;
+		else if (a_i >= a_len && b_i <= b_len)
+			return -1; /* 'ba' is less than 'baa' */
+		else if (b_i >= b_len)
+			return 1;
+
+		if (a[a_i] >= '1' && a[a_i] <= '9') { /* no leading zeroes */
+			if (b[b_i] < '1' || b[b_i] > '9')
+				return -1; /* numbers are less than letters */
+			int a_s = a_i;
+			int b_s = b_i;
+			/* manual base 10 str-integer comparison yay */
+			for (a_i += 1; a_i < a_len && a[a_i] >= '0' && a[a_i] <= '9'; a_i++);
+			for (b_i += 1; b_i < b_len && b[b_i] >= '0' && b[b_i] <= '9'; b_i++);
+			if ((a_i - a_s) > (b_i - b_s))
+				return 1;
+			else if ((a_i - a_s) < (b_i - b_s))
+				return -1;
+
+			int zl = (a_i - a_s);
+			for (int z = 0; z < zl; z++) {
+				char a_c = a[a_s + z];
+				char b_c = b[b_s + z];
+				if (a_c == b_c)
+					continue;
+				else if (a_c > b_c)
+					return 1;
+				else
+					return -1;
+			}
+			/* number was equal.. */
+			continue;
+		} else if (b[b_i] >= '0' && b[b_i] <= '9') {
+			return 1; /* a hadn't got a number at this pos */
+		} else if (a[a_i] > b[b_i]) {
+			return 1;
+		} else if (a[a_i] < b[b_i]) {
+			return -1;
+		}
+		a_i++;
+		b_i++;
+	}
+	assert(1==3); /* yet another loop that exits the entire function */
+	return -99;
+}
+
+/**
  * ver_compare() - compare two version strings for which is greater
  * @a_len:	length of first ver string @a
  * @a:		first version string
@@ -1194,15 +1260,53 @@ static int mod_unload(struct refb *refs, int mod_index)
  */
 static int ver_compare(int a_len, const char *a, int b_len, const char *b)
 {
-	lprintf(WRN "ver_compare() function incomplete. %.*s v %.*s\n",
-			a_len, a, b_len, b);
+	int a_i = 0;
+	int b_i = 0;
+
+	/* mess with epochs */
+	for (a_i = 0; a_i < a_len && a[a_i] != ':'; a_i++);
+	for (b_i = 0; b_i < b_len && b[b_i] != ':'; b_i++);
+	bool a_zero = a_i == a_len || (a_i == 1 && a[0] == '0');
+	bool b_zero = b_i == b_len || (b_i == 1 && b[0] == '0');
+	if (a_zero && !b_zero)
+		return -1;
+	else if (!a_zero && b_zero)
+		return 1;
+
+	if (a_i == a_len) a_i = 0;
+	else a_i++;
+
+	if (b_i == b_len) b_i = 0;
+	else b_i++;
+
+	while (1) {
+		int a_s = a_i;
+		int b_s = b_i;
+		for (a_i = 0; a_i < a_len && a[a_i] != '.'; a_i++);
+		for (b_i = 0; b_i < b_len && b[b_i] != '.'; b_i++);
+
+		int j = ver_mthan(a_i - a_s, a + a_s, b_i - b_s, b + b_s);
+		if (j)
+			return j;
+
+		if (a_i <= a_len && b_i <= b_len)
+			continue;
+		else if (a_i == a_len && b_i == b_len)
+			return 0;
+		else if (a_i == a_len)
+			return -1; /* a < b, terminates faster */
+		else
+			return 1; /* a > b */
+	}
+
+	assert(1==2); /* loop exits function */
 	return 1;
 }
 
 /**
  * ver_compatible() - test if a version string is compatible for a target
  * @t_len:	length of the target string @t
- * @t:		target string
+ * @t:		target (the required version "at least") string
  * @v_len:	length of the string to test
  * @v:		string to test
  *
@@ -1211,8 +1315,51 @@ static int ver_compare(int a_len, const char *a, int b_len, const char *b)
  */
 static int ver_compatible(int t_len, const char *t, int v_len, const char *v)
 {
-	lprintf(WRN "ver_compatible() function incomplete. %.*s v %.*s\n",
-			t_len, t, v_len, v);
+	int t_i = 0;
+	int v_i = 0;
+
+
+	/* check epochs */
+	for (t_i = 0; t_i < t_len && t[t_i] != ':'; t_i++);
+	for (v_i = 0; v_i < v_len && v[v_i] != ':'; v_i++);
+
+	/* 0-test */
+	bool t_zero = t_i == t_len || (t_i == 1 && t[0] == '0');
+	bool v_zero = v_i == v_len || (v_i == 1 && v[0] == '0');
+	if (t_zero != v_zero)
+		return -1;
+	else if (t_zero);
+	else if (t_i != v_i || memcmp(v, t, t_i - 1)) /* epochs differ? */
+		return -1;
+
+	if (t_i == t_len) t_i = 0;
+	else t_i++;
+
+	if (v_i == v_len) v_i = 0;
+	else v_i++;
+
+	/* check that the version is larger than or equal to target */
+	while (1) {
+		int t_s = t_i;
+		int v_s = v_i;
+		for (t_i += 0; t_i < t_len && t[t_i] != '.'; t_i++);
+		for (v_i += 0; v_i < v_len && v[v_i] != '.'; v_i++);
+
+		int c = ver_mthan(t_i - t_s, t + t_s, v_i - v_s, v + v_s);
+		if (!c) {
+			if (!((t_i - t_s) + (v_i - v_s))) /* end reached */
+				return 1;
+			t_i++;
+			v_i++;
+			continue;
+		} else if (c < 0) {
+			return 1; /* value more than target */
+		} else {
+			return -1; /* value is less than target */
+		}
+	}
+
+	assert(1==3); /* loop exits function */
 	return 1;
 }
 
@@ -1349,8 +1496,9 @@ static int use_exec_fcn_init(struct refb *refs,
 	}
 
 	/* Pick out the best provider */
-	int lst = -1, prov_valid = prov_length;
+	int lst, prov_valid = prov_length;
 	while (prov_valid > 0) {
+		lst = -1;
 		for (i = 0; i < prov_length; i++) {
 			if (!prov_a[i].works)
 				continue;
@@ -1367,10 +1515,12 @@ static int use_exec_fcn_init(struct refb *refs,
 			if (ver_compare(prov_a[lst].prov_ver_l,
 						prov_a[lst].prov_ver,
 						prov_a[i].prov_ver_l,
-						prov_a[i].prov_ver) < 0)
+						prov_a[i].prov_ver) > 0)
 				continue;
 			lst = i;
 		}
+		if (prov_valid <= 0)
+			break;
 
 		int nl;
 		const char *n;
@@ -1387,7 +1537,6 @@ static int use_exec_fcn_init(struct refb *refs,
 			mod_unload(refs, prevprov);
 			prevprov = -1;
 		}
-
 
 		int x = mod_load(refs, prov_a[lst].mod_index);
 		if (x < 0) {
@@ -1462,8 +1611,6 @@ static int use_exec(struct refb *refs, int mod_index,
 			goto exitpt;
 		}
 
-		lprintf(DBG "use_exec:%i:%.*s(%i)\n", u->fcn_index, u->ver_len, u->ver_off + vers,
-				u->ver_len);
 		int tmod = use_exec_fcn_init(refs,
 				u->fcn_index, u->ver_len, u->ver_off + vers);
 		if (tmod < 0) {
@@ -1735,23 +1882,43 @@ int ce_mod_add(const struct ce_mod *mod)
 	minf->use_live_cnt = 0;
 	minf->use_live_size = 0;
 
-	struct xf_strb msgb = { .a = NULL, .size = 0, .length = 0 };
-
-	xf_strb_setf(&msgb, INF "Module " lF_GRE "%.*s" _lF " { ",
-			minf->name_len, b1.a);
+	lprintf(INF "Module "lF_GRE"%.*s"_lF" (id%2i) { ",
+			minf->name_len, b1.a, n);
 
 	for (i = 0; i < minf->fcn_cnt; i++) {
 		struct fcn_inf *fin = fcns_a + minf->additional[i].index;
-		xf_strb_appendf(&msgb, ""lF_YELW"%.*s"_lF"; ",
+		if (fin->expands) {
+			struct fcn_inf *pin = fcns_a + fin->parent;
+			int plen = pin->name_len;
+			lprintf(""lF_YELW"%.*s%c%.*s",
+					plen, fcn_inf_name(pin),
+					pin->variable == 1 ? '=' : '+',
+					fin->name_len - plen - 1,
+					fcn_inf_name(fin) + plen + 1);
+		} else {
+			lprintf(""lF_YELW"%.*s",
 				fin->name_len, fcn_inf_name(fin));
+		}
+		lprintf("%s"_lF"; ",
+				!fin->variable ? "" :
+				(fin->variable == 1 ? "$": "[]"));
 	};
+	if (!minf->use_cnt) {
+		lputs("} added.");
+		goto exitp;
+	}
 
-	xf_strb_appendf(&msgb, "} added. ID %i", n);
-	lprintf("%s\n", msgb.a);
-	xf_strb_destruct(&msgb);
-	mod_inf_use_print(minf);
+	lprintf("} [ ");
+	for (i = 0; i < minf->use_cnt; i++) {
+		lprintf("%.*s%s%.*s""%s",
+				fcns_a[uinf[i].fcn_index].name_len,
+				fcn_inf_name(fcns_a + uinf[i].fcn_index),
+				uinf[i].ver_len ? " " : "",
+				uinf[i].ver_len, uvers + uinf[i].ver_off,
+				i + 1 < minf->use_cnt ? ", " : "");
+	}
+	lputs(" ] added.");
 
-	/*xf_strb_destruct(&b1);*/
 exitp:
 	if (err < 0) {
 		for (i = 0; i < b3_length; i++)
