@@ -757,6 +757,10 @@ static inline void mod_inf_use_print(struct mod_inf *minf)
 	lputs(".");
 }
 
+/* Cleanup mode is mod_unload-only and dereference to 0 will require that mod
+ * to be unloaded aswell. */
+static int cleanup = 0;
+
 /**
  * struct refb - stores the usage reference counts for fcns and mods
  *
@@ -844,6 +848,8 @@ __attribute__((constructor(130))) static void ce_mod_init()
 			sizeof(struct use_inf));
 }
 
+static void *bgeneric = NULL;
+static int bgeneric_size = 0;
 static struct xf_strb b1 = { .a = NULL };
 static struct xf_strb b2 = { .a = NULL };
 static struct mod_inf_fcn *b3 = NULL;
@@ -863,6 +869,10 @@ __attribute__((destructor(130))) static void ce_mod_exit()
 		xf_strb_destruct(&b4);
 	if (b5 != NULL)
 		free(b5);
+	if (bgeneric != NULL) {
+		free(bgeneric);
+		bgeneric_size = 0;
+	}
 	if (top_use != NULL) {
 		refb_destruct(top_use);
 		free(top_use);
@@ -971,6 +981,8 @@ const char *ce_mod_strerr(int err)
 		case -105:return "Cannot load module - conflicted fcn provider unload failure.";
 		/* mod_use */
 		case -121:return "The ce-main mod is not supposed to be active during any init.";
+		case -131:return "Failed to find functionality for unuse.";
+		case -132:return "Functionality specified for unuse doesn't belong to module.";
 		/* mod_unload */
 		case -141:return "Cannot unload module - module is in use.";
 		/* ce_mod_rm */
@@ -1178,11 +1190,10 @@ static int mod_unload(struct refb *refs, int mod_index)
 		refb_fcn_unref(refs, f);
 		int p = fcn_provider_get(f);
 		x = refb_mod_unref(refs, p);
-		/* See if module is no longer used. */
-		/* unload on not-use should happen at the end of init */
-		/*if (!x) {
+		/* If cleanup mode, see if module is no longer used. */
+		if (cleanup && !x) {
 			mod_unload(refs, p);
-		}*/
+		}
 	}
 	return 0;
 }
@@ -2005,30 +2016,38 @@ static int mod_use(int mod_index, const char *use)
 
 	/* whether or not this has been called from a module's load() fnc  */
 	int root = 0; /* don't make this static */
-	if (top_use == NULL) {
+	if (top_use == NULL || root_mod == mod_index) {
 
-		root_mod = mod_index;
+		if (root_mod != mod_index) {
+			int n_l;
+			const char *n;
+			int v_l;
+			const char *v;
+			mod_inf_name_get(mods_a + mod_index, &n_l, &n);
+			mod_inf_vers_get(mods_a + mod_index, &v_l, &v);
+
+			lprintf(INF "Root mod: "lF_GRE"%.*s %.*s"_lF".\n",
+					n_l, n, v_l, v);
+
+			root_mod = mod_index;
+		}
 
 		root = 1;
-		int n_l;
-		const char *n;
-		int v_l;
-		const char *v;
-		mod_inf_name_get(mods_a + mod_index, &n_l, &n);
-		mod_inf_vers_get(mods_a + mod_index, &v_l, &v);
-
-		lprintf(INF "Root mod: "lF_GRE"%.*s %.*s"_lF".\n",
-				n_l, n, v_l, v);
 		/* malloc  */
-		top_use = malloc(sizeof(struct refb));
-		refb_construct(top_use);
+		if (top_use == NULL) {
+			top_use = malloc(sizeof(struct refb));
+			refb_construct(top_use);
+		}
 
 		if ((err = mod_load(top_use, mod_index)) < 0) {
 			lprintf(ERR "Root mod failed to be loaded, this is the end.\n");
 			return err;
 		}
 		mods_a[mod_index].loading = 1; /* is it a good idea to manipulate this flag here? */
+
+		refb_mod_ref(top_use, mod_index);
 	}
+
 	err = use_exec(top_use, mod_index, out_len, out, vers);
 	if (root) {
 		mods_a[mod_index].loading = 0; /* should this flag be constantly set root-mod? */
@@ -2063,24 +2082,6 @@ static int mod_use(int mod_index, const char *use)
 		if (use_size_new - minf->use_live_cnt < out_len)
 			use_size_new = minf->use_live_cnt + out_len;
 
-		/*lprintf(WRN "expanding minf->use_live_size; vers_len: %i, "
-				"old sz: %lu, new: %lu, outln: %i\n", vers_len,
-				minf->name_off + minf->name_len + minf->ver_len
-				+ (minf->use_cnt + minf->use_live_size)
-					* sizeof(struct use_inf)
-				+ vers_len,
-				minf->name_off + minf->name_len + minf->ver_len
-				+ (minf->use_cnt + use_size_new)
-					* sizeof(struct use_inf)
-				+ vers_len,
-				out_len
-				);*/
-
-		/*int offs = minf->name_off + minf->name_len + minf->ver_len
-			+ sizeof(struct use_inf) * (minf->use_cnt - 1);
-	lprintf(WRN "a %i usecnt%i off%i\n",
-			((struct use_inf *)((char *) minf->additional) + offs)
-			->ver_off, minf->use_cnt, offs);*/
 		/* expand m->additional memory to hold more extra use slots */
 		minf->additional = realloc(minf->additional, 0 /*
 				+ sizeof(struct mod_inf_fcn) * minf->fcn_cnt
@@ -2120,11 +2121,6 @@ static int mod_use(int mod_index, const char *use)
 			out, out_len * sizeof(struct use_inf));
 	minf->use_live_cnt += out_len;
 
-	/*lprintf(WRN "len now: %lu(w/o vers_len)\n",
-			minf->name_off + minf->name_len + minf->ver_len
-			+ (minf->use_cnt + minf->use_live_size)
-			* sizeof(struct use_inf)
-	       ); */
 	return err;
 }
 
@@ -2139,10 +2135,110 @@ int ce_mod_use(int mod_id, const char *use)
 	return mod_use(n, use);
 }
 
+int ce_mod_unuse(int mod_id, const char *unuse)
+{
+	struct id_t *id = (struct id_t *) &mod_id;
+	assert(!id->iserr);
+	assert(id->index < mods_length);
+	assert(mods_a[id->index].iter == id->iter);
+
+	struct mod_inf *minf = mods_a + id->index;
+	struct use_inf *u;
+	int u_l;
+	mod_inf_use_get(minf, &u_l, &u, NULL);
+	int u_s = minf->use_cnt;
+	assert(u_l >= u_s);
+
+	if (bgeneric == NULL) {
+		bgeneric_size = 3 * sizeof(struct hashentry);
+		bgeneric = malloc(bgeneric_size);
+	}
+	struct hashentry *e_a = (struct hashentry *) bgeneric;
+	int e_size = bgeneric_size / sizeof(struct hashentry);
+	int e_length = 0;
+
+	const char *p;
+	const char *s;
+	for (p = unuse; *p != '\0'; p++) {
+		for (; isspace(*p); p++);
+		s = p;
+		for (; !isspace(*p) && *p != '\0'; p++);
+
+		struct hashentry *e = xf_htable_find(fcn_l, s, (int) (p - s));
+		if (e == NULL) {
+			lprintf(ERR "Failed to find functionality "
+					lF_RED"%.*s"_lF"(%i) for unuse.\n",
+					(int) (p - s), s, (int) (p - s));
+			return -131;
+		}
+		/* Check if it belongs to module variable functionality list */
+		int i;
+		for (i = u_s; i < u_l; i++) {
+			if (u[i].fcn_index != e->index)
+				continue;
+			break;
+		}
+		if (i == u_l) {
+			lprintf(ERR "Functionality specified for unuse doesn't"
+					"belong to module.\n");
+			return -132;
+		}
+
+		/* Add to the list of modules to unuse. */
+		if (e_size <= e_length) {
+			if (e_size)	e_size *= 2;
+			else		e_size = 3;
+			e_a = realloc(e_a, sizeof(struct hashentry) * e_size);
+			assert(e_a);
+			bgeneric_size = e_size * sizeof(struct hashentry);
+			bgeneric = e_a;
+		}
+		e_a[e_length].index = e->index;
+		e_length++;
+	}
+
+	/* Dereference the functionalities */
+	for (int i = 0; i < e_length; i++) {
+		int f = e_a[i].index;
+		refb_fcn_unref(top_use, f);
+		refb_mod_unref(top_use, fcn_provider_get(f));
+	}
+
+	/* Remove functionalities from mod_inf_use */
+	if (minf->use_live_cnt == e_length) {
+		minf->use_live_cnt = 0;
+		return 0;
+	}
+	for (int i = 0; i < e_length; i++) {
+		int n;
+		for (n = u_s; n < u_l && u[n].fcn_index != e_a[i].index; n++);
+		assert(n != u_l);
+		memmove(u + n, u + n + 1, sizeof(u[0]) * (n + 1 - u_l));
+		u_l--;
+		continue;
+	}
+	minf->use_live_cnt -= e_length;
+	return 0;
+}
+
+void ce_mod_cleanup()
+{
+	assert(top_use && !cleanup);
+	cleanup = 1;
+	for (int i = 0; i < mods_length; i++) {
+		if (!mods_a[i].loaded || refb_mod_cnt(top_use, i))
+			continue;
+		mod_unload(top_use, i);
+	}
+	cleanup = 0;
+}
+
 __attribute__((destructor(65001))) static void root_mod_exit()
 {
-	if (root_mod >= 0 && mods_a[root_mod].loaded)
+	if (root_mod >= 0 && mods_a[root_mod].loaded) {
+		refb_mod_unref(top_use, root_mod);
 		mod_unload(top_use, root_mod);
+	}
 }
 
 

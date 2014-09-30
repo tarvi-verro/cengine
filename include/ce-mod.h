@@ -58,15 +58,23 @@ struct ce_mod {
  * finished, this function returns and the main should call the specified
  * ce_main_ctrl function (provided by 'ce-main-ctrl').
  *
- * Each time this function is called with @mod_id of the 'ce-main'
- * functionality, all the previously required mods will be dropped.
- *
- *
  * Return:	negative value on failure
  */
 int ce_mod_use(int mod_id, const char* use);
 
-int ce_mod_def(int mod_id, const char* def_impl);
+/**
+ * ce_mod_unuse() - specify functionality no longer needed
+ * @mod_id:	the module that no longer requires given functionality
+ * @unuse:	list of semi-colon separated functionality names
+ *
+ * Return:	negative on failure
+ */
+int ce_mod_unuse(int mod_id, const char* unuse);
+
+/**
+ * ce_mod_cleanup() - checks and unloads unnecessary modules
+ */
+void ce_mod_cleanup();
 
 /**
  * ce_mod_add() - registers a module

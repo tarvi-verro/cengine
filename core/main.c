@@ -92,6 +92,11 @@ int main(int argc, char * const *args)
 		lprintf(ERR "Nothing to give control over to.\n");
 	}
 
+	if (load) {
+		ce_mod_unuse(modid, load);
+	}
+	ce_mod_cleanup();
+
 #ifdef MEMCNT_ENABLED
 	//memcnt_status(stderr);
 #endif
@@ -101,11 +106,6 @@ int main(int argc, char * const *args)
 			"+ ce-log "lF_BLUE"%ti"_lF" "
 			"= "lF_BLUE"%ti"_lF".\n",
 			mem_mod, mem_log, mem_mod + mem_log);
-	//fprintf(stderr, "OKOK\n");
-	/*lputs(DBG "wtfing");
-	char *buf = malloc(72); // 57 to 72 ??? * /
-	free(buf);
-	lputs(DBG "wtf"); */
 	return EXIT_SUCCESS;
 }
 

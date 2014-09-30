@@ -14,13 +14,17 @@
  *
  *	101	memcnt.c
  *
- *	110	ce-log.c lprintf(), lputs() and log_* fncs
+ *	110	core/log.c lprintf(), lputs() and log_* fncs
  *
- *	120	ce-opt.c ce_options
+ *	120	core/opt.c ce_options
  *
- *	130	ce-mod.c
+ *	130	core/mod.c
+ *
+ *	140	core/dlib.c
  *
  *	501	other components
+ *
+ *    50001	dlib unload
  *
  *    65001	ce-mod.c root-mod exit
  */
