@@ -60,7 +60,7 @@ static struct inputsection input_section_ptr = {
 
 static struct inputsection *input_section_mot;
 
-int input_section_active_mot;
+static int input_section_active_mot;
 
 static int scn_colour_loop()
 {

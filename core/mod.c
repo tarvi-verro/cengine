@@ -884,6 +884,17 @@ __attribute__((destructor(130))) static void ce_mod_exit()
 	for (i = 0; i < mods_length; i++) {
 		if (mods_a[i].additional == NULL)
 			continue;
+
+		const char *n;
+		int n_l;
+		const char *v;
+		int v_l;
+		mod_inf_name_get(mods_a + i, &n_l, &n);
+		mod_inf_vers_get(mods_a + i, &v_l, &v);
+
+		lprintf(DBG "Module "lF_CYA"%.*s %.*s"_lF"%sfailed to unlist "
+				"itself.\n", n_l, n, v_l, v,
+				v_l >= 1 ? " " : "");
 		free(mods_a[i].additional);
 	}
 	free(mods_a);

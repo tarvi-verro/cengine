@@ -658,6 +658,10 @@ static void trig_targets_process(struct event_triggers *ev,
 
 static int dummy_callback(int n, int event, int x, int y)
 {
+	if (event == INPUT_EVENT_MOTION || event == INPUT_EVENT_POINTER)
+		return 0;
+	if (event == INPUT_EVENT_PRESS)
+		return 0;
 	lprintf(DBG "Unbound key.\n");
 	return 0;
 }
