@@ -372,7 +372,7 @@ int opt_parse(struct optset *set, int argc, char * const argv[], int offset)
 			for (e = 2; a[e] != '\0' && a[e] != '='; e++);
 			struct optid opti = opt_nlong_find(set, a + 2, e - 2);
 			if (opti.sectid == section_max && opti.optid == option_max) {
-				lprintf(WRN "Unrecognized option \""lF_RED"%s"_lF"\"\n", a);
+				lprintf(WRN "Unrecognized option \""lF_RED"%s"_lF"\".\n", a);
 				continue;
 			}
 			struct opt *o = set->section_a[opti.sectid]->opt_a + opti.optid;

@@ -268,10 +268,10 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 		xcb_generic_event_t *qevent;
 		qevent = xcb_poll_for_queued_event(xcb_con);
 		if (qevent == NULL) {
-			/* none queued, but perhaps will be in a ms */
+			/* none queued, but perhaps will be in 2 ms */
 			struct timespec ts = {
 				.tv_sec = 0,
-				.tv_nsec = 1*1000*1000
+				.tv_nsec = 2*1000*1000
 			};
 			nanosleep(&ts, NULL);
 			qevent = xcb_poll_for_event(xcb_con);

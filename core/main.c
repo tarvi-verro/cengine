@@ -94,8 +94,8 @@ int main(int argc, char * const *args)
 
 	if (load) {
 		ce_mod_unuse(modid, load);
+		ce_mod_cleanup();
 	}
-	ce_mod_cleanup();
 
 #ifdef MEMCNT_ENABLED
 	//memcnt_status(stderr);

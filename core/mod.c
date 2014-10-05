@@ -898,12 +898,15 @@ __attribute__((destructor(130))) static void ce_mod_exit()
 		free(mods_a[i].additional);
 	}
 	free(mods_a);
+	mods_a = NULL;
 	free(fcns_a);
+	fcns_a = NULL;
 
 	lputs(INF "Module handler destructed.");
 }
 size_t ce_mod_memcnt()
 {
+	assert(mods_a && fcns_a);
 	size_t cnt = 0;
 	if (b1.a)
 		cnt += b1.size;
@@ -1743,6 +1746,7 @@ static int use_compile(const char *use,
 
 int ce_mod_add(const struct ce_mod *mod)
 {
+	assert(mods_a && fcns_a);
 	assert(top_use == NULL);
 	const char *d = mod->def;
 
@@ -1965,6 +1969,7 @@ exitp:
 
 int ce_mod_rm(int mod_id)
 {
+	assert(mods_a && fcns_a);
 	struct id_t *id = (struct id_t *) &mod_id;
 	assert(!id->iserr);
 	assert(id->index < mods_length);
@@ -2137,6 +2142,7 @@ static int mod_use(int mod_index, const char *use)
 
 int ce_mod_use(int mod_id, const char *use)
 {
+	assert(mods_a && fcns_a);
 	struct id_t *id = (struct id_t *) &mod_id;
 	assert(!id->iserr);
 	assert(id->index < mods_length);
@@ -2148,6 +2154,7 @@ int ce_mod_use(int mod_id, const char *use)
 
 int ce_mod_unuse(int mod_id, const char *unuse)
 {
+	assert(mods_a && fcns_a);
 	struct id_t *id = (struct id_t *) &mod_id;
 	assert(!id->iserr);
 	assert(id->index < mods_length);
@@ -2168,9 +2175,9 @@ int ce_mod_unuse(int mod_id, const char *unuse)
 	int e_size = bgeneric_size / sizeof(struct hashentry);
 	int e_length = 0;
 
-	const char *p;
+	const char *p = unuse;
 	const char *s;
-	for (p = unuse; *p != '\0'; p++) {
+	while (*p != '\0') {
 		for (; isspace(*p); p++);
 		s = p;
 		for (; !isspace(*p) && *p != '\0'; p++);
@@ -2234,6 +2241,7 @@ int ce_mod_unuse(int mod_id, const char *unuse)
 
 void ce_mod_cleanup()
 {
+	assert(mods_a && fcns_a);
 	assert(top_use && !cleanup);
 	cleanup = 1;
 	for (int i = 0; i < mods_length; i++) {
