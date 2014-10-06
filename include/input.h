@@ -25,13 +25,21 @@ struct inputset;
  *			left mouse button, INPUT_KEY_MOUSE_OFF+1 middle mouse
  *			button, _OFF+3 scroll-up, _OFF+4 scroll-down etc
  * @INPUT_KEY_CLOSE:	triggered by the window manager (for example after the
- *			window "X" close button)
+ *			window "X" close button) (%INPUT_EVENT_FIRE)
+ * @INPUT_KEY_POINTER:	input of a cursor pointer (%INPUT_EVENT_POINTER);
+ * 			can't be combined with @INPUT_TYPE_MOTION, see below
+ * @INPUT_KEY_RESIZE:	fired when the window is resized (%INPUT_EVENT_FIRE)
+ * @INPUT_KEY_EXPOSE:	triggered when the window (re)appears
+ *			(%INPUT_EVENT_FIRE)
+ *
  */
 enum {
 	INPUT_KEY_NONE = 0,
 	INPUT_KEY_MOUSE_OFF = -32,
 	INPUT_KEY_MOTION = -51,
 	INPUT_KEY_CLOSE = -61,
+	INPUT_KEY_RESIZE = -62,
+	INPUT_KEY_EXPOSE = -63,
 };
 
 /**
@@ -46,7 +54,7 @@ enum {
  * @INPUT_TYPE_MOTION:	trigger on two dimensional movement events like mouse
  *			movement (%INPUT_EVENT_MOTION)
  * @INPUT_TYPE_POINTER:	input of a cursor pointer (%INPUT_EVENT_POINTER);
- * 			can't be combined with @INPUT_TYPE_MOTION, see below
+ *			can't be combined with @INPUT_TYPE_MOTION, see below
  *
  * These values are OR-ed together at &struct input's %type field to indicate
  * acceptable event types for trigger.

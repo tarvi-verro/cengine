@@ -1,7 +1,5 @@
 
 /* TODO:
- *	Window resize
- *	Window exposure
  *	Error handling when xcb_con should fail
  *	Regrab master pointer when focus regained
  *	Rebindable keys, keys with multiple default keys
@@ -40,6 +38,7 @@ extern Window glx_win;
 static xcb_connection_t *xcb_con = NULL;
 static xcb_cursor_t xcb_cursor_transparent;
 
+#if 0
 static int u32_to_utf8(uint32_t input, char *out, int out_size)
 {
 #define pbits(n) printf("%i%i%i%i %i%i%i%i\n",!!(n&0x80),!!(n&0x40),!!(n&0x20),!!(n&0x10),\
@@ -100,6 +99,7 @@ static int u32_to_utf8(uint32_t input, char *out, int out_size)
 	out[0] = '\0';
 	return 0;
 }
+#endif
 
 struct event_triggers_pt {
 	uint8_t cb_index;
@@ -119,6 +119,8 @@ struct event_triggers {
 	uint8_t *key_trig;
 
 	uint8_t close_trig;
+	uint8_t resize_trig;
+	uint8_t expose_trig;
 
 	/*int button_trig_off; // const 1*/
 	uint8_t *button_trig;
@@ -370,13 +372,27 @@ static void event_handle(int *looping, xcb_generic_event_t *event,
 		xcb_expose_event_t *ex =
 		       (xcb_expose_event_t *) event;
 		/*lprintf(DBG "XCB_EXPOSE %ix%i\n", ex->width, ex->height);*/
+		bool resize = false;
 		pthread_mutex_lock(&win_mutex);
-		if (win_width != ex->width || win_height == ex->height) {
+		if (win_width != ex->width || win_height != ex->height) {
 			win_width = ex->width;
 			win_height = ex->height;
+			resize = true;
 		}
 		pthread_mutex_unlock(&win_mutex);
 		event_feed_xlib(event);
+		if (resize) {
+			struct event_triggers_pt *pt = tri->trigs_a
+				+ tri->resize_trig;
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_POINTER, ex->width,
+					ex->height);
+		} else {
+			struct event_triggers_pt *pt = tri->trigs_a
+				+ tri->expose_trig;
+			i = tri->cbs_a[pt->cb_index](pt->input_index,
+					INPUT_EVENT_FIRE, 0, 0);
+		}
 	} else if (typ == XCB_MAP_NOTIFY) {
 		event_feed_xlib(event);
 	} else if (typ == XCB_UNMAP_NOTIFY) {
@@ -651,6 +667,14 @@ static void trig_targets_process(struct event_triggers *ev,
 		assert((inp->types & INPUT_TYPE_FIRE));
 		assert(!ev->close_trig);
 		ev->close_trig = ev_trigs_id;
+	} else if (inp->defkey == INPUT_KEY_RESIZE) {
+		assert((inp->types & INPUT_TYPE_POINTER));
+		assert(!ev->resize_trig);
+		ev->resize_trig = ev_trigs_id;
+	} else if (inp->defkey == INPUT_KEY_EXPOSE) {
+		assert((inp->types & INPUT_TYPE_FIRE));
+		assert(!ev->expose_trig);
+		ev->expose_trig = ev_trigs_id;
 	} else {
 		assert(1==2);
 	}
@@ -704,6 +728,8 @@ void dummy_construct(struct event_triggers **ev, int *ev_length)
 	(*ev)->motion_trig = 0;
 	(*ev)->motion_curs = true;
 	(*ev)->close_trig = 0;
+	(*ev)->resize_trig = 0;
+	(*ev)->expose_trig = 0;
 
 	/* dummy info */
 	(*ev)->trigs_a[0].cb_index = 0;
@@ -779,6 +805,8 @@ struct inputset *input_set_active(struct inputset *set)
 		ev->motion_trig = 0;
 		ev->motion_curs = true;
 		ev->close_trig = 0;
+		ev->resize_trig = 0;
+		ev->expose_trig = 0;
 
 		/* fill in info */
 		int trig_id = 1;
