@@ -2197,7 +2197,7 @@ int ce_mod_unuse(int mod_id, const char *unuse)
 			break;
 		}
 		if (i == u_l) {
-			lprintf(ERR "Functionality specified for unuse doesn't"
+			lprintf(ERR "Functionality specified for unuse doesn't "
 					"belong to module.\n");
 			return -132;
 		}
