@@ -82,8 +82,8 @@ int main(int argc, char * const *args)
 	if (load) {
 		int err = ce_mod_use(modid, load);
 		if (err < 0)
-			lprintf(ERR "Initializing --load string failed: %s\n",
-					ce_mod_strerr(err));
+			lprintf(ERR "Initializing --load \"%s\" string failed: %s\n",
+					load, ce_mod_strerr(err));
 	}
 
 	if (control) {

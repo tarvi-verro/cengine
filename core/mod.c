@@ -583,10 +583,8 @@ static int fcn_get(int fcn_nl, const char *fcn_n, int variable)
 		f->defined = 0;
 		f->parent = parent != -1 ? parent : 0;
 		f->child_cnt = 0;
-
-		e = xf_htable_see(fcn_l, b.a, b.length - 1, &def);
 	} else {
-		xf_mregion_rewind(fcn_names, name_add);
+		xf_mregion_undo(fcn_names, name_add);
 		f = &fcns_a[e->index];
 		int refc = top_use != NULL ? refb_fcn_cnt(top_use, e->index) : 0;
 		if (variable != -4 && f->variable != var) {
