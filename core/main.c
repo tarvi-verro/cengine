@@ -12,25 +12,53 @@
 int (*control)() = NULL;
 
 static char *load = NULL;
+static int check = 0;
 
 static int optcb(int index, const char *optarg)
 {
-	assert(index == 0 && optarg != NULL);
-	if (load) {
-		lprintf(WRN "Only one --load string acceptable. "
-				"Overwriting previous.\n");
-		free(load);
+	assert(index >= 0 && index < 2);
+	size_t l;
+	switch (index) {
+	case 0:
+		assert(optarg != NULL);
+		if (load) {
+			if (check) {
+				lprintf(ERR "Option --check cannot be combined with --load."
+						"Ignoring "lF_RED"%s"_lF"\n", optarg);
+				return 1;
+			}
+			lprintf(WRN "Only one --load string acceptable. "
+					"Overwriting previous.\n");
+			free(load);
+		}
+		l = strlen(optarg) + 1;
+		load = memcpy(malloc(l), optarg, l);
+		return 0;
+	case 1:
+		assert(optarg != NULL);
+		if (load != NULL) {
+			if (check)
+				lprintf(ERR "Only one --check string acceptable.\n");
+			else
+				lprintf(ERR "Option --check cannot be combined with --load.\n");
+			return 1;
+		}
+		check = 1;
+		l = strlen(optarg) + 1;
+		load = memcpy(malloc(l), optarg, l);
+		return 0;
 	}
-	size_t l = strlen(optarg) + 1;
-	load = memcpy(malloc(l), optarg, l);
-	return 0;
+	return 1;
 }
+
 static struct optsection opts = {
 	.label = "Main:",
 	.callback = optcb,
 	.opt_a = {
 		{ ARG_REQUIRED, 'l', "load", "FCN\t"
 			"Load functionality before giving control over." },
+		{ ARG_REQUIRED, 'c', "check", "FCN\t"
+			"Check whether functionality can be loaded." },
 		{ 0, '\0', NULL, NULL },
 	},
 };
@@ -84,6 +112,8 @@ int main(int argc, char * const *args)
 		if (err < 0)
 			lprintf(ERR "Initializing --load \"%s\" string failed: %s\n",
 					load, ce_mod_strerr(err));
+		if (check)
+			return !!err;
 	}
 
 	if (control) {

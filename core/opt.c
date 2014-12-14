@@ -237,7 +237,9 @@ int opt_add(struct optset *set, struct optsection *sect)
 			int y;
 			for (y = 0; o->help[y] != '\0' && o->help[y] != '\t'; y++);
 			if (o->help[y] != '\t') {
-				lprintf(ERR "opt with argument must name argument in .help\n");
+				lprintf(ERR "Option with argument must name "
+						"argument in struct opt.help: "
+						"\""lBLD_"ARG\\t"_lBLD"...\"\n");
 				opt_rm_lim(set, sect, i - 1);
 				return -1;
 			}
