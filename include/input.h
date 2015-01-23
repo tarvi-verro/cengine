@@ -24,6 +24,7 @@ struct inputset;
  * @INPUT_KEY_MOUSE_OFF:mouse buttons' offset, where INPUT_KEY_MOUSE_OFF+0 is
  *			left mouse button, INPUT_KEY_MOUSE_OFF+1 middle mouse
  *			button, _OFF+3 scroll-up, _OFF+4 scroll-down etc
+ * @INPUT_KEY_MOTION:	capture XY motion input (mouse)
  * @INPUT_KEY_CLOSE:	triggered by the window manager (for example after the
  *			window "X" close button) (%INPUT_EVENT_FIRE)
  * @INPUT_KEY_POINTER:	input of a cursor pointer (%INPUT_EVENT_POINTER);

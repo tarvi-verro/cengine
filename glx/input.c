@@ -498,7 +498,7 @@ reload_tri:
 	while (!looping) {
 		xcb_generic_event_t *event = xcb_wait_for_event(xcb_con);
 		if (!event) {
-			printf("No event today :( \n");
+			lprintf(ERR "No event today :( \n");
 			break;
 		}
 		event_handle(&looping, event, tri);
@@ -751,7 +751,9 @@ struct inputset *input_set_active(struct inputset *set)
 	} else if (!set->dirty && set == active) {
 		pthread_mutex_unlock(&input_set_active_mutex);
 		return set;
-	} else if (set->dirty) {
+	} else if (!set->dirty) {
+		next = set->handleinfo;
+	} else {
 		int ev_length;
 		struct event_triggers *ev;
 		if (active == set) {
