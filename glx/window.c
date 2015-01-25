@@ -58,6 +58,7 @@ static void lprintFBConfig(Display *dpy, GLXFBConfig fbc, int id)
 }
 static int load()
 {
+	XInitThreads(); /* required for multithreading business */
 	glx_dpy = XOpenDisplay(dpy_name);
 	if (!glx_dpy) {
 		lprintf(ERR "Failed to open display "lBLD_"%s"_lBLD"\n",

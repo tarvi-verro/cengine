@@ -223,7 +223,6 @@ extern int win_height;
  * This code snippet was found at the following site:
  * https://bugs.freedesktop.org/show_bug.cgi?id=35945#c4
  *
- * TODO: Is it OK to call this wire function from another thread?
  */
 static void event_feed_xlib(xcb_generic_event_t *event)
 {
