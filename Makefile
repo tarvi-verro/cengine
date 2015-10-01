@@ -7,7 +7,6 @@
 MKDEP = gcc -MM -MG $(CFLAGS) "$*.c" \
 	| sed -e "s@^\(.*\)\:@$*.d $*.o\:@" > $@
 
-
 #VPATH = extfnc:include
 
 CC ?= gcc
@@ -38,4 +37,8 @@ clean:
 	rm -f cengine $(OBJ) \
 		$(patsubst %.o, %.d, $(OBJ))
 
-.PHONY: all clean
+xf-strb.h:
+	git submodule init
+	git submodule update
+
+.PHONY: all clean xf-strb.h
