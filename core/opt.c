@@ -28,7 +28,6 @@ int optarg_bool(const char *a)
 	b[4] |= 32;
 	b[5] |= 32;
 	b[6] |= 32;
-	b[7] |= 32;
 	if (l == 1) {
 		if (*b == 't' || *b == 'y')	return 1;
 		if (*b == 'f' || *b == 'n')	return 0;

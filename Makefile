@@ -70,8 +70,9 @@ clean:
 	rm -f $O/cengine $(OBJ) \
 		$(patsubst %.o, %.d, $(OBJ))
 
-xf-strb.h:
+# Make sure extfnc is checked out.
+extfnc/readme:
 	git submodule init
 	git submodule update
 
-.PHONY: xf-strb.h clean
+.PHONY: clean
