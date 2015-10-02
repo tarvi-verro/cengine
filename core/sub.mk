@@ -1,5 +1,5 @@
 
-LDFLAGS += -ldl -rdynamic
+LDFLAGS += -ldl --export-dynamic
 SRC += core/log.c
 SRC += core/opt.c
 SRC += core/mod.c

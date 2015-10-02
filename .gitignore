@@ -1,5 +1,3 @@
 log
-cengine
 Documentation/*.html
-*.d
-*.o
+build
