@@ -46,6 +46,7 @@ else
 endif
 
 $O/%.o: %.c | $O
+	@mkdir -p $(@D)
 ifeq ($(PRINT_PRETTY), 1)
 	@printf "  CC\t$@\n"
 	@$(CC) $(CFLAGS) -c $< -o $@
