@@ -1,4 +1,4 @@
 [submodule "extfnc"]
 	path = extfnc
-	url = ssh://bron@k49:6428/~bron/extfnc.git
+	url = https://github.com/tarvi-verro/extfnc.git
 	branch = master
